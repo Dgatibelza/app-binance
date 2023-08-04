@@ -79,6 +79,8 @@ extern viewctl_delegate_ready viewctl_ehReady;
 extern viewctl_delegate_exit viewctl_ehExit;
 extern viewctl_delegate_display_ux viewctl_display_ux;
 
+extern volatile char viewctl_DataValue[MAX_CHARS_PER_VALUE_LINE];
+
 void viewctl_start(int start_page,
                    bool single_page,
                    viewctl_delegate_getData ehUpdate,

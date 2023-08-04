@@ -38,10 +38,10 @@ void view_set_handlers(viewctl_delegate_getData func_getData,
 
 //------ Common functions
 /// view_init
-void view_init(void);
+// void view_init(void);
 
 /// view_idle
-void view_idle(unsigned int ignored);
+// void view_idle(unsigned int ignored);
 
 /// view_display_tx_menu
 void view_display_tx_menu(unsigned int ignored);

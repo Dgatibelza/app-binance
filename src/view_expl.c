@@ -15,9 +15,11 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
+#ifdef HAVE_BAGL
 
 #include "view.h"
-#include "view_templates.h"
+#include "view_old.h"
+// #include "view_templates.h"
 #include "view_expl.h"
 #include "common.h"
 
@@ -32,14 +34,14 @@
 // -----
 static const bagl_element_t viewexpl_bagl_valuescrolling_first[] = {
         UI_FillRectangle(0, 0, 0, 128, 32, 0x000000, 0xFFFFFF),
-        UI_Icon(0, 128 - 7, 0, 7, 7, BAGL_GLYPH_ICON_RIGHT),
-        UI_LabelLine(1, 0, 8, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_Title),
-        UI_LabelLine(1, 0, 19, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataKey),
-        UI_LabelLineScrolling(2, 16, 30, 96, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataValue),
+        // UI_Icon(0, 128 - 7, 0, 7, 7, BAGL_GLYPH_ICON_RIGHT),
+        // UI_LabelLine(1, 0, 8, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_Title),
+        // UI_LabelLine(1, 0, 19, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataKey),
+        // UI_LabelLineScrolling(2, 16, 30, 96, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataValue),
 };
 
 static const bagl_element_t viewexpl_bagl_valuescrolling[] = {
-        UI_FillRectangle(0, 0, 0, 128, 32, 0x000000, 0xFFFFFF),
+        // UI_FillRectangle(0, 0, 0, 128, 32, 0x000000, 0xFFFFFF),
         UI_Icon(0, 0, 0, 7, 7, BAGL_GLYPH_ICON_LEFT),
         UI_Icon(0, 128 - 7, 0, 7, 7, BAGL_GLYPH_ICON_RIGHT),
         UI_LabelLine(1, 0, 8, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_Title),
@@ -226,7 +228,7 @@ UX_STEP_INIT(
 UX_STEP_VALID(
     ux_view_addr_step, 
     nnn,
-    view_idle(0),
+    view_idle_show(0,NULL),
     {
       viewctl_Title,
       viewctl_DataKey,
@@ -514,3 +516,4 @@ void viewexpl_start(int start_page,
 #endif
 
 }
+#endif // HAVE_BAGL

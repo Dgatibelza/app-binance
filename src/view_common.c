@@ -15,14 +15,23 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
+#include "view_common.h"
+volatile char viewctl_DataValue[MAX_CHARS_PER_VALUE_LINE];
+
+#ifdef HAVE_BAGL
 
 #include "view.h"
-#include "view_templates.h"
+#include "view_old.h"
+// #include "view_templates.h"
 #include "view_expl.h"
 #include "common.h"
 
 #include "glyphs.h"
+
+#ifndef TARGET_STAX
 #include "bagl.h"
+#endif
+
 #include "zxmacros.h"
 
 #include <string.h>
@@ -33,7 +42,7 @@ void viewctl_display_page();
 enum UI_DISPLAY_MODE viewctl_scrolling_mode;
 
 volatile char viewctl_DataKey[MAX_CHARS_PER_KEY_LINE];
-volatile char viewctl_DataValue[MAX_CHARS_PER_VALUE_LINE];
+
 volatile char viewctl_Title[MAX_SCREEN_LINE_WIDTH];
 
 int viewctl_DetailsCurrentPage;
@@ -204,3 +213,4 @@ void viewctl_display_page() {
     viewctl_display_ux(viewctl_DetailsCurrentPage, viewctl_DetailsPageCount);
 #endif
 }
+#endif HAVE_BAGL

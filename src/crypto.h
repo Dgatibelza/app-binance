@@ -17,6 +17,7 @@
 #pragma once
 
 #include "os.h"
+#include "app_main.h"
 
 /// keys_secp256k1
 /// \param publicKey
@@ -40,3 +41,28 @@ int sign_secp256k1(const uint8_t *message,
                    unsigned int signature_capacity,
                    unsigned int *signature_length,
                    cx_ecfp_private_key_t *privateKey);
+
+
+uint8_t extractHRP(uint32_t rx, uint32_t offset);
+
+void crypto_set_hrp(char *p);
+
+void set_hrp(char *hrp);
+
+bool validate_bnc_hrp(void);
+
+extern uint8_t bip32_depth;
+extern uint32_t bip32_path[5];
+
+extern uint8_t viewed_bip32_depth;
+extern uint32_t viewed_bip32_path[5];
+
+extern uint8_t bech32_hrp_len;
+extern char bech32_hrp[MAX_BECH32_HRP_LEN + 1];
+
+// uint16_t crypto_fillAddress(uint8_t *buffer, uint16_t bufferLen);
+
+// uint16_t crypto_sign(uint8_t *signature,
+//                      uint16_t signatureMaxlen,
+//                      const uint8_t *message,
+//                      uint16_t messageLen);

@@ -15,16 +15,20 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
-
+#ifdef HAVE_BAGL
 #include "view.h"
-#include "view_templates.h"
+#include "view_old.h"
+// #include "view_templates.h"
 #include "view_expl.h"
 #include "view_conf.h"
 #include "common.h"
 #include "app_main.h"
 
 #include "glyphs.h"
+
+#ifndef TARGET_STAX
 #include "bagl.h"
+#endif
 
 #include <string.h>
 #include <stdio.h>
@@ -33,9 +37,9 @@
 #define FALSE 0
 
 #if defined(TARGET_NANOX) || defined(TARGET_NANOS2)
-#include "ux.h"
-ux_state_t G_ux;
-bolos_ux_params_t G_ux_params;
+// #include "ux.h"
+// ux_state_t G_ux;
+// bolos_ux_params_t G_ux_params;
 #else
 ux_state_t ux;
 #endif // TARGET_NANOX || defined(TARGET_NANOS2)
@@ -105,7 +109,7 @@ UX_FLOW_DEF_VALID(
 UX_FLOW_DEF_VALID(
     ux_menu_addr_back_step,
     pb,
-    view_idle(0),
+    view_idle_show(0,NULL),
     {
       &C_icon_back_x,
       "Go back",
@@ -118,45 +122,45 @@ UX_FLOW(menu_address_x,
 );
 
 //////////////////////////////////////////////////////////////////////
-UX_FLOW_DEF_NOCB(
-    ux_idle_flow_1_step,
-    pnn,
-    {
-      &C_binance,
-      "Binance Chain",
-      "ready",
-    });
-UX_FLOW_DEF_NOCB(
-    ux_idle_flow_2_step,
-    bn,
-    {
-      "Version",
-      APPVERSION,
-    });
-UX_FLOW_DEF_VALID(
-    ux_idle_flow_3_step,
-    pb,
-    ux_flow_init(0, menu_address_x, NULL),
-    {
-      &C_icon_eye,
-      "Your addresses",
-    });
-UX_FLOW_DEF_VALID(
-    ux_idle_flow_4_step,
-    pb,
-    os_sched_exit(-1),
-    {
-      &C_icon_dashboard_x,
-      "Quit",
-    });
+// UX_FLOW_DEF_NOCB(
+//     ux_idle_flow_1_step,
+//     pnn,
+//     {
+//       &C_binance,
+//       "Binance Chain",
+//       "ready",
+//     });
+// UX_FLOW_DEF_NOCB(
+//     ux_idle_flow_2_step,
+//     bn,
+//     {
+//       "Version",
+//       APPVERSION,
+//     });
+// UX_FLOW_DEF_VALID(
+//     ux_idle_flow_3_step,
+//     pb,
+//     ux_flow_init(0, menu_address_x, NULL),
+//     {
+//       &C_icon_eye,
+//       "Your addresses",
+//     });
+// UX_FLOW_DEF_VALID(
+//     ux_idle_flow_4_step,
+//     pb,
+//     os_sched_exit(-1),
+//     {
+//       &C_icon_dashboard_x,
+//       "Quit",
+//     });
 
-UX_FLOW(ux_idle_flow,
-  &ux_idle_flow_1_step,
-  &ux_idle_flow_2_step,
-  &ux_idle_flow_3_step,
-  &ux_idle_flow_4_step,
-  FLOW_LOOP
-);
+// UX_FLOW(ux_idle_flow,
+//   &ux_idle_flow_1_step,
+//   &ux_idle_flow_2_step,
+//   &ux_idle_flow_3_step,
+//   &ux_idle_flow_4_step,
+//   FLOW_LOOP
+// );
 #endif
 //------ View elements
 
@@ -175,14 +179,10 @@ void view_set_handlers(viewctl_delegate_getData func_getData,
 
 // ------ Event handlers
 
-void io_seproxyhal_display(const bagl_element_t *element) {
-    io_seproxyhal_display_default((bagl_element_t *) element);
-}
-
 /////////////////////////////////
 
 void user_view_addr_exit(unsigned int unused) {
-    view_idle(0);
+    view_idle_show(0,NULL);
 }
 
 void view_address_show_main_net(unsigned int unused) {
@@ -239,7 +239,7 @@ void view_addr_exit(unsigned int unused) {
     G_io_apdu_buffer[0] = 0x90;
     G_io_apdu_buffer[1] = 0x00;
     io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, 2);
-    view_idle(0);
+    view_idle_show(0,NULL);
 }
 
 void view_addr_show(unsigned int start_page) {
@@ -286,23 +286,23 @@ void reject(unsigned int unused) {
     }
 }
 
-void view_init(void) {
-    UX_INIT();
-    view_uiState = UI_IDLE;
-}
+// void view_init(void) {
+//     UX_INIT();
+//     view_uiState = UI_IDLE;
+// }
 
-void view_idle(unsigned int ignored) {
-    view_uiState = UI_IDLE;
-#if defined(TARGET_NANOS)
-    UX_MENU_DISPLAY(0, menu_main, NULL);
-#elif defined(TARGET_NANOX) || defined(TARGET_NANOS2)
-    // reserve a display stack slot if none yet
-    if(G_ux.stack_count == 0) {
-        ux_stack_push();
-    }
-    ux_flow_init(0, ux_idle_flow, NULL);
-#endif
-}
+// void view_idle(unsigned int ignored) {
+//     view_uiState = UI_IDLE;
+// #if defined(TARGET_NANOS)
+//     UX_MENU_DISPLAY(0, menu_main, NULL);
+// #elif defined(TARGET_NANOX) || defined(TARGET_NANOS2)
+//     // reserve a display stack slot if none yet
+//     if(G_ux.stack_count == 0) {
+//         ux_stack_push();
+//     }
+//     ux_flow_init(0, ux_idle_flow, NULL);
+// #endif
+// }
 
 void view_display_tx_menu(unsigned int ignored) {
     view_uiState = UI_TRANSACTION;
@@ -312,9 +312,15 @@ void view_display_tx_menu(unsigned int ignored) {
 }
 
 void view_display_signing_success() {
-    view_idle(0);
+    view_idle_show(0,NULL);
 }
 
 void view_display_signing_error() {
-    view_idle(0);
+    view_idle_show(0,NULL);
 }
+
+// void io_seproxyhal_display(const bagl_element_t *element) {
+//     io_seproxyhal_display_default(element);
+// }
+
+#endif // HAVE_BAGL

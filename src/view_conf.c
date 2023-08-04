@@ -14,9 +14,11 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
+#ifdef HAVE_BAGL
 
 #include "view.h"
-#include "view_templates.h"
+#include "view_old.h"
+// #include "view_templates.h"
 #include "view_expl.h"
 #include "common.h"
 
@@ -31,21 +33,21 @@ viewctl_delegate_accept viewctl_ehAccept = NULL;
 viewctl_delegate_reject viewctl_ehReject = NULL;
 
 static const bagl_element_t viewconf_bagl_valuescrolling[] = {
-        UI_FillRectangle(0, 0, 0, 128, 32, 0x000000, 0xFFFFFF),
-        UI_Icon(0, 0, 0, 7, 7, BAGL_GLYPH_ICON_CROSS),
-        UI_Icon(0, 128 - 7, 0, 7, 7, BAGL_GLYPH_ICON_CHECK),
-        UI_LabelLine(1, 0, 8, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_Title),
-        UI_LabelLine(1, 0, 19, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataKey),
-        UI_LabelLineScrolling(2, 16, 30, 96, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataValue),
+        // UI_FillRectangle(0, 0, 0, 128, 32, 0x000000, 0xFFFFFF),
+        // UI_Icon(0, 0, 0, 7, 7, BAGL_GLYPH_ICON_CROSS),
+        // UI_Icon(0, 128 - 7, 0, 7, 7, BAGL_GLYPH_ICON_CHECK),
+        // UI_LabelLine(1, 0, 8, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_Title),
+        // UI_LabelLine(1, 0, 19, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataKey),
+        // UI_LabelLineScrolling(2, 16, 30, 96, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataValue),
 };
 
 static const bagl_element_t viewconf_bagl_keyscrolling[] = {
-        UI_FillRectangle(0, 0, 0, 128, 32, 0x000000, 0xFFFFFF),
-        UI_Icon(0, 0, 0, 7, 7, BAGL_GLYPH_ICON_CROSS),
-        UI_Icon(0, 128 - 7, 0, 7, 7, BAGL_GLYPH_ICON_CHECK),
-        UI_LabelLine(1, 0, 8, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_Title),
-        UI_LabelLine(1, 0, 30, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataValue),
-        UI_LabelLineScrolling(2, 16, 19, 96, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataKey),
+        // UI_FillRectangle(0, 0, 0, 128, 32, 0x000000, 0xFFFFFF),
+        // UI_Icon(0, 0, 0, 7, 7, BAGL_GLYPH_ICON_CROSS),
+        // UI_Icon(0, 128 - 7, 0, 7, 7, BAGL_GLYPH_ICON_CHECK),
+        // UI_LabelLine(1, 0, 8, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_Title),
+        // UI_LabelLine(1, 0, 30, 128, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataValue),
+        // UI_LabelLineScrolling(2, 16, 19, 96, 11, 0xFFFFFF, 0x000000, (const char *) viewctl_DataKey),
 };
 
 const bagl_element_t *viewconf_bagl_prepro(const bagl_element_t *element) {
@@ -91,8 +93,8 @@ static unsigned int viewconf_bagl_valuescrolling_button(
 
 void viewconf_display_ux() {
     if (viewctl_scrolling_mode == VALUE_SCROLLING) {
-        UX_DISPLAY(viewconf_bagl_valuescrolling, viewconf_bagl_prepro);
     } else {
+        UX_DISPLAY(viewconf_bagl_valuescrolling, viewconf_bagl_prepro);
         UX_DISPLAY(viewconf_bagl_keyscrolling, viewconf_bagl_prepro);
     }
 }
@@ -108,3 +110,4 @@ void viewconf_start(int start_page,
     viewctl_ehReject = func_reject;
     viewctl_start(start_page, single_page, func_update, func_ready, func_exit, viewconf_display_ux);
 }
+#endif // HAVE_BAGL
