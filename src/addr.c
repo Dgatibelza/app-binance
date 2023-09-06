@@ -24,41 +24,41 @@
 
 #include "view_common.h"
 
-// zxerr_t addr_getNumItems(uint8_t *num_items) {
-//     zemu_log_stack("addr_getNumItems");
-//     *num_items = 1;
-//     if (app_mode_expert()) {
-//         *num_items = 2;
-//     }
-//     return zxerr_ok;
-// }
+zxerr_t addr_getNumItems(uint8_t *num_items) {
+    zemu_log_stack("addr_getNumItems");
+    *num_items = 1;
+    if (app_mode_expert()) {
+        *num_items = 2;
+    }
+    return zxerr_ok;
+}
 
-// zxerr_t addr_getItem(int8_t displayIdx,
-//                      char *outKey, uint16_t outKeyLen,
-//                      char *outVal, uint16_t outValLen,
-//                      uint8_t pageIdx, uint8_t *pageCount) {
-//     ZEMU_LOGF(200, "[addr_getItem] %d/%d\n", displayIdx, pageIdx)
+zxerr_t addr_getItem(int8_t displayIdx,
+                     char *outKey, uint16_t outKeyLen,
+                     char *outVal, uint16_t outValLen,
+                     uint8_t pageIdx, uint8_t *pageCount) {
+    ZEMU_LOGF(200, "[addr_getItem] %d/%d\n", displayIdx, pageIdx)
 
-//     switch (displayIdx) {
-//         case 0:
-//             snprintf(outKey, outKeyLen, "Address");
-//             pageString(outVal, outValLen, (char *) (G_io_apdu_buffer + PK_LEN_SECP256K1), pageIdx, pageCount);
-//             return zxerr_ok;
-//         case 1: {
-//             if (!app_mode_expert()) {
-//                 return zxerr_no_data;
-//             }
+    switch (displayIdx) {
+        case 0:
+            snprintf(outKey, outKeyLen, "Address");
+            pageString(outVal, outValLen, (char *) (G_io_apdu_buffer + PK_LEN_SECP256K1), pageIdx, pageCount);
+            return zxerr_ok;
+        case 1: {
+            if (!app_mode_expert()) {
+                return zxerr_no_data;
+            }
 
-//             snprintf(outKey, outKeyLen, "Your Path");
-//             char buffer[300];
-//             bip32_to_str(buffer, sizeof(buffer), hdPath, HDPATH_LEN_DEFAULT);
-//             pageString(outVal, outValLen, buffer, pageIdx, pageCount);
-//             return zxerr_ok;
-//         }
-//         default:
-//             return zxerr_no_data;
-//     }
-// }
+            snprintf(outKey, outKeyLen, "Path");
+            char buffer[300];
+            bip32_to_str(buffer, sizeof(buffer), hdPath, HDPATH_LEN_DEFAULT);
+            pageString(outVal, outValLen, buffer, pageIdx, pageCount);
+            return zxerr_ok;
+        }
+        default:
+            return zxerr_no_data;
+    }
+}
 
 #define PK_COMPRESSED_LEN 33
 
@@ -83,10 +83,10 @@ int addr_getData(char *title, int max_title_length,
     *page_count_out = 0x7FFFFFFF;
     *chunk_count_out = 1;
 
-    snprintf(title, max_title_length, "Account %d", bip32_path[2] & 0x7FFFFFF);
+    snprintf(title, max_title_length, "Account %d", hdPath[2] & 0x7FFFFFF);
     snprintf(key, max_key_length, "Address %d", page_index);
 
-    bip32_path[bip32_depth - 1] = page_index;
+    hdPath[HDPATH_LEN_DEFAULT - 1] = page_index;
     uint8_t tmp[PK_COMPRESSED_LEN];
     get_pk_compressed(tmp);
 
@@ -96,7 +96,7 @@ int addr_getData(char *title, int max_title_length,
     ripemd160_32(hashed_pk, tmp);
 
     // Convert address to bech32
-    // bech32EncodeFromBytes(value, bech32_hrp, hashed_pk, CX_RIPEMD160_SIZE);
+    bech32EncodeFromBytes(value, bech32_hrp, hashed_pk, CX_RIPEMD160_SIZE);
 
     return 0;
 }

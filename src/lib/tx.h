@@ -18,7 +18,7 @@
 #include "transaction_parser.h"
 #include "os.h"
 
-void transaction_initialize();
+void tx_initialize();
 
 /// Clears the transaction buffer
 void transaction_reset();

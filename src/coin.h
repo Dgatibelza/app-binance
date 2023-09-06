@@ -21,17 +21,35 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
-#define CLA                  0x55
+#define CLA                       0xBC
 
-#define HDPATH_LEN_DEFAULT   5
+#define OFFSET_PCK_INDEX          2  //< Package index offset
+#define OFFSET_PCK_COUNT          3  //< Package count offset
 
-#define HDPATH_0_DEFAULT     (0x80000000u | 0x2cu) // 0x80000000u | 44u
-#define HDPATH_1_DEFAULT     (0x80000000u | 0x2cau) // 0x80000000u | 714u
-#define HDPATH_2_DEFAULT     (0x80000000u | 0u)
-#define HDPATH_3_DEFAULT     (0u)
-#define HDPATH_4_DEFAULT     (0u)
+#define INS_GET_VERSION           0
+#define INS_PUBLIC_KEY_SECP256K1  1  // It will be deprecated in the near future
+#define INS_SIGN_SECP256K1        2
+#define INS_SHOW_ADDR_SECP256K1   3
+#define INS_GET_ADDR_SECP256K1    4
 
-#define PK_LEN_SECP256K1     33u
+#ifdef TESTING_ENABLED
+#define INS_HASH_TEST                   100
+#define INS_PUBLIC_KEY_SECP256K1_TEST   101
+#define INS_SIGN_SECP256K1_TEST         102
+#endif
+
+#define HDPATH_LEN_DEFAULT        5
+
+#define HDPATH_0_DEFAULT          (0x80000000u | 0x2cu) // 0x80000000u | 44u
+#define HDPATH_1_DEFAULT          (0x80000000u | 0x2cau) // 0x80000000u | 714u
+#define HDPATH_2_DEFAULT          (0x80000000u | 0u)
+#define HDPATH_3_DEFAULT          (0u)
+#define HDPATH_4_DEFAULT          (0u)
+
+#define MAX_BECH32_HRP_LEN        5
+
+#define PK_LEN_SECP256K1                33u
+#define PK_LEN_SECP256K1_UNCOMPRESSED   65u
 
 typedef enum {
     addr_secp256k1 = 0,
@@ -55,3 +73,10 @@ typedef enum {
 #ifdef __cplusplus
 }
 #endif
+
+
+
+
+
+
+

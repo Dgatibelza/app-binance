@@ -20,6 +20,7 @@
 #include <os.h>
 
 #include "app_main.h"
+#include "common.h"
 #include "addr.h"
 #include "ux.h"
 #include "actions.h"
@@ -31,8 +32,94 @@
 #include "zxmacros.h"
 #include "apdu_codes.h"
 #include "bech32.h"
+#include "app_mode.h"
 
+#ifdef TESTING_ENABLED
+// Generate using always the same private data
+// to allow for reproducible results
+const uint8_t privateKeyDataTest[] = {
+        0x75, 0x56, 0x0e, 0x4d, 0xde, 0xa0, 0x63, 0x05,
+        0xc3, 0x6e, 0x2e, 0xb5, 0xf7, 0x2a, 0xca, 0x71,
+        0x2d, 0x13, 0x4c, 0xc2, 0xa0, 0x59, 0xbf, 0xe8,
+        0x7e, 0x9b, 0x5d, 0x55, 0xbf, 0x81, 0x3b, 0xd4
+};
+#endif
 
+sigtype_t current_sigtype;
+
+__Z_INLINE uint8_t extractHRP(uint32_t rx, uint32_t offset) {
+    if (rx < offset + 1) {
+        THROW(APDU_CODE_DATA_INVALID);
+    }
+    MEMZERO(bech32_hrp, MAX_BECH32_HRP_LEN);
+
+    bech32_hrp_len = G_io_apdu_buffer[offset];
+
+    if (bech32_hrp_len == 0 || bech32_hrp_len > MAX_BECH32_HRP_LEN) {
+        THROW(APDU_CODE_DATA_INVALID);
+    }
+
+    memcpy(bech32_hrp, G_io_apdu_buffer + offset + 1, bech32_hrp_len);
+    bech32_hrp[bech32_hrp_len] = 0;     // zero terminate
+
+    return bech32_hrp_len;
+}
+
+__Z_INLINE void extractHDPath(uint32_t rx, uint32_t offset) {
+    if ((rx - offset) < sizeof(uint32_t) * HDPATH_LEN_DEFAULT) {
+        THROW(APDU_CODE_WRONG_LENGTH);
+    }
+
+    MEMCPY(hdPath, G_io_apdu_buffer + offset, sizeof(uint32_t) * HDPATH_LEN_DEFAULT);
+    PRINTF(" HDPATH: %.*H\n", sizeof(uint32_t) * HDPATH_LEN_DEFAULT, hdPath);
+    // Check values
+    if (hdPath[0] != HDPATH_0_DEFAULT ||
+        hdPath[1] != HDPATH_1_DEFAULT ||
+        hdPath[3] != HDPATH_3_DEFAULT) {
+        THROW(APDU_CODE_DATA_INVALID);
+    }
+
+    PRINTF(" Validated HDPATH\n ");
+
+    // Limit values unless the app is running in expert mode
+    if (!app_mode_expert()) {
+        for(int i=2; i < HDPATH_LEN_DEFAULT; i++) {
+            // hardened or unhardened values should be below 20
+            if ( (hdPath[i] & 0x7FFFFFFF) > 100) THROW(APDU_CODE_CONDITIONS_NOT_SATISFIED);
+        }
+    }
+}
+
+bool process_chunk(volatile uint32_t *tx, uint32_t rx, bool getBip32) {
+    int packageIndex = G_io_apdu_buffer[OFFSET_PCK_INDEX];
+    int packageCount = G_io_apdu_buffer[OFFSET_PCK_COUNT];
+
+    uint16_t offset = OFFSET_DATA;
+    if (rx < offset) {
+        THROW(APDU_CODE_DATA_INVALID);
+    }
+
+    if (packageIndex == 1) {
+        tx_initialize();
+        transaction_reset();
+        if (getBip32) {
+            extractHDPath(rx, offset);
+            
+            // must be the last bip32 the user "saw" for signing to work.
+            if (memcmp(hdPath, viewed_bip32_path, HDPATH_LEN_DEFAULT) != 0) {
+                THROW(APDU_CODE_DATA_INVALID);
+            }
+
+            return packageIndex == packageCount;
+        }
+    }
+
+    if (transaction_append(&(G_io_apdu_buffer[offset]), rx - offset) != rx - offset) {
+        THROW(APDU_CODE_OUTPUT_BUFFER_TOO_SMALL);
+    }
+
+    return packageIndex == packageCount;
+}
 
 int tx_getData(
         char *title, int max_title_length,
@@ -74,7 +161,7 @@ void tx_accept_sign() {
         case SECP256K1:
             os_perso_derive_node_bip32(
                     CX_CURVE_256K1,
-                    bip32_path, bip32_depth,
+                    hdPath, HDPATH_LEN_DEFAULT,
                     privateKeyData, NULL);
 
             keys_secp256k1(&publicKey, &privateKey, privateKeyData);
@@ -116,57 +203,83 @@ void get_pubkey(cx_ecfp_public_key_t *publicKey) {
     // Generate keys
     os_perso_derive_node_bip32(
             CX_CURVE_256K1,
-            bip32_path, bip32_depth,
+            hdPath, HDPATH_LEN_DEFAULT,
             privateKeyData, NULL);
     keys_secp256k1(publicKey, &privateKey, privateKeyData);
     memset(privateKeyData, 0, sizeof(privateKeyData));
     memset(&privateKey, 0, sizeof(privateKey));
 }
 
-__Z_INLINE void handleGetAddrSecp256K1(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
-                    
-    ///////////////////
+__Z_INLINE void handleGetVersion(volatile uint32_t *tx, uint32_t rx) {
+#if defined(TARGET_NANOX) || defined(TARGET_NANOS2) || defined(TARGET_STAX)
+    unsigned int UX_ALLOWED = (G_ux_params.len != BOLOS_UX_IGNORE && G_ux_params.len != BOLOS_UX_CONTINUE);
+#else
+    unsigned int UX_ALLOWED = (ux.params.len != BOLOS_UX_IGNORE && ux.params.len != BOLOS_UX_CONTINUE);
+#endif
 
-    uint8_t len = extractHRP(rx, OFFSET_DATA);
+#ifdef TESTING_ENABLED
+    G_io_apdu_buffer[0] = 0xFF;
+#else
+    G_io_apdu_buffer[0] = 0;
+#endif
+    G_io_apdu_buffer[1] = LEDGER_MAJOR_VERSION;
+    G_io_apdu_buffer[2] = LEDGER_MINOR_VERSION;
+    G_io_apdu_buffer[3] = LEDGER_PATCH_VERSION;
+    G_io_apdu_buffer[4] = !UX_ALLOWED;
+
+    *tx += 5;
+    THROW(APDU_CODE_OK);
+
+    return;
+}
+
+__Z_INLINE void handleGetUncompressedPubKey(volatile uint32_t *tx, uint32_t rx) {
+    extractHDPath(rx, OFFSET_DATA + 1);
+
+    cx_ecfp_public_key_t publicKey;
+    get_pubkey(&publicKey);
+
+    os_memmove(G_io_apdu_buffer, publicKey.W, 65);
+    *tx += 65;
+
+    THROW(APDU_CODE_OK);
+
+    return;
+}
+
+
+__Z_INLINE void handleGetAddrSecp256K1(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx, bool showAddr) {
+    uint8_t HRPlen = extractHRP(rx, OFFSET_DATA);
     
     // Parse arguments
     if (!validate_bnc_hrp()) {
         THROW(APDU_CODE_DATA_INVALID);
     }
     
-    // extractHDPath(rx, OFFSET_DATA + 1 + len);
+    extractHDPath(rx, OFFSET_DATA + 1 + HRPlen + 1);
+
+    zxerr_t zxerr = app_fill_address(addr_secp256k1);
+    if (zxerr != zxerr_ok) {
+        *tx = 0;
+        THROW(APDU_CODE_DATA_INVALID);
+    }
+
+    // When showing the address, we just return status ok. The address is not returned (cf. PROTOSPEC.md)
+    if (showAddr) {
+        view_review_init(addr_getItem, addr_getNumItems, app_reply_ok);
+        view_review_show(REVIEW_ADDRESS);
+        *flags |= IO_ASYNCH_REPLY;
+        return;
+    }
     
-    if (!extract_bip32(&bip32_depth, bip32_path, rx, OFFSET_DATA + bech32_hrp_len + 1)) {
-        THROW(APDU_CODE_DATA_INVALID);
-    }
-    if (!validate_bnc_bip32(bip32_depth, bip32_path)) {
-        THROW(APDU_CODE_DATA_INVALID);
-    }
+    *tx = action_addrResponseLen;
 
-    // uint8_t requireConfirmation = G_io_apdu_buffer[OFFSET_P1];
-
-    // if (requireConfirmation) {
-    //     app_fill_address(addr_secp256k1);
-    //     view_review_init(addr_getItem, addr_getNumItems, app_reply_address);
-    //     view_review_show(REVIEW_ADDRESS);
-    //     *flags |= IO_ASYNCH_REPLY;
-    //     return;
-    // }
-
-    // *tx = app_fill_address(addr_secp256k1);
+    // must be the last bip32 the user "saw" for signing to work.
+    memcpy(viewed_bip32_path, hdPath, sizeof(uint32_t) * HDPATH_LEN_DEFAULT);
+    
     THROW(APDU_CODE_OK);
-                    
-                    
-    ///////                
-                    
 
-    // view_set_handlers(addr_getData, addr_accept, addr_reject);
-    // view_addr_confirm(bip32_path[4] & 0x7FFFFFF);
-
-    // // must be the last bip32 the user "saw" for signing to work.
-    // memcpy(viewed_bip32_path, bip32_path, sizeof(viewed_bip32_path));
-
-    *flags |= IO_ASYNCH_REPLY;
+    return;
 }
 
 
@@ -177,6 +290,7 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
     {
         TRY
         {
+            PRINTF("Debug trace inside handleApdu\n");
             if (G_io_apdu_buffer[OFFSET_CLA] != CLA) {
                 THROW(APDU_CODE_CLA_NOT_SUPPORTED);
             }
@@ -184,97 +298,26 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
             if (rx < 5) {
                 THROW(APDU_CODE_WRONG_LENGTH);
             }
-
+            PRINTF("INS: %d\n", G_io_apdu_buffer[OFFSET_INS]);
             switch (G_io_apdu_buffer[OFFSET_INS]) {
                 case INS_GET_VERSION: {
-#if defined(TARGET_NANOX) || defined(TARGET_NANOS2) || defined(TARGET_STAX)
-                    unsigned int UX_ALLOWED = (G_ux_params.len != BOLOS_UX_IGNORE && G_ux_params.len != BOLOS_UX_CONTINUE);
-#else
-                    unsigned int UX_ALLOWED = (ux.params.len != BOLOS_UX_IGNORE && ux.params.len != BOLOS_UX_CONTINUE);
-#endif
-
-#ifdef TESTING_ENABLED
-                    G_io_apdu_buffer[0] = 0xFF;
-#else
-                    G_io_apdu_buffer[0] = 0;
-#endif
-                    G_io_apdu_buffer[1] = LEDGER_MAJOR_VERSION;
-                    G_io_apdu_buffer[2] = LEDGER_MINOR_VERSION;
-                    G_io_apdu_buffer[3] = LEDGER_PATCH_VERSION;
-                    G_io_apdu_buffer[4] = !UX_ALLOWED;
-
-                    *tx += 5;
-                    THROW(APDU_CODE_OK);
+                    handleGetVersion(tx, rx);
                     break;
                 }
 
                 // INS_PUBLIC_KEY_SECP256K1 will be deprecated in the near future
                 case INS_PUBLIC_KEY_SECP256K1: {
-                    if (!extract_bip32(&bip32_depth, bip32_path, rx, OFFSET_DATA)) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-                    if (!validate_bnc_bip32(bip32_depth, bip32_path)) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-
-                    cx_ecfp_public_key_t publicKey;
-                    get_pubkey(&publicKey);
-
-                    os_memmove(G_io_apdu_buffer, publicKey.W, 65);
-                    *tx += 65;
-
-                    // NOTE: REMOVED FOR SECURITY - this does not show the address to user.
-                    // memcpy(viewed_bip32_path, bip32_path, sizeof(viewed_bip32_path));
-
-                    THROW(APDU_CODE_OK);
+                    handleGetUncompressedPubKey(tx, rx);
                     break;
                 }
 
                 case INS_SHOW_ADDR_SECP256K1: {
-                    // Parse arguments
-                    extractHRP(rx, OFFSET_DATA);
-
-                    if (!validate_bnc_hrp()) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-                    if (!extract_bip32(&bip32_depth, bip32_path, rx, OFFSET_DATA + bech32_hrp_len + 1)) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-                    if (!validate_bnc_bip32(bip32_depth, bip32_path)) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-
-                    view_set_handlers(addr_getData_onePage, NULL, NULL);
-                    view_addr_show(bip32_path[4] & 0x7FFFFFF);
-
-                    // must be the last bip32 the user "saw" for signing to work.
-                    memcpy(viewed_bip32_path, bip32_path, sizeof(viewed_bip32_path));
-
-                    *flags |= IO_ASYNCH_REPLY;
+                    handleGetAddrSecp256K1(flags, tx, rx, true);
                     break;
                 }
 
                 case INS_GET_ADDR_SECP256K1: {
-                    // Parse arguments
-                    extractHRP(rx, OFFSET_DATA);
-                    
-                    if (!validate_bnc_hrp()) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-                    if (!extract_bip32(&bip32_depth, bip32_path, rx, OFFSET_DATA + bech32_hrp_len + 1)) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-                    if (!validate_bnc_bip32(bip32_depth, bip32_path)) {
-                        THROW(APDU_CODE_DATA_INVALID);
-                    }
-
-                    view_set_handlers(addr_getData, addr_accept, addr_reject);
-                    view_addr_confirm(bip32_path[4] & 0x7FFFFFF);
-
-                    // must be the last bip32 the user "saw" for signing to work.
-                    memcpy(viewed_bip32_path, bip32_path, sizeof(viewed_bip32_path));
-
-                    *flags |= IO_ASYNCH_REPLY;
+                    handleGetAddrSecp256K1(flags, tx, rx, false);
                     break;
                 }
 
@@ -291,8 +334,11 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
                         THROW(APDU_CODE_BAD_KEY_HANDLE);
                     }
 
-                    view_set_handlers(tx_getData, tx_accept_sign, tx_reject);
-                    view_tx_show(0);
+                    //view_set_handlers(tx_getData, tx_accept_sign, tx_reject);
+                    //view_tx_show(0);
+
+                    view_review_init(tx_getItem, tx_getNumItems, app_sign);
+                    view_review_show(REVIEW_TXN);
 
                     *flags |= IO_ASYNCH_REPLY;
                     break;

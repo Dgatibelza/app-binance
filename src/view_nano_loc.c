@@ -22,7 +22,7 @@
 #include "view_expl.h"
 #include "view_conf.h"
 #include "common.h"
-#include "app_main.h"
+
 
 #include "glyphs.h"
 

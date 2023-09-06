@@ -22,7 +22,7 @@
 #include <os_io_seproxyhal.h>
 #include "coin.h"
 
-uint8_t action_addr_len;
+uint16_t action_addrResponseLen;
 
 void app_sign() {
     uint8_t *signature = G_io_apdu_buffer;

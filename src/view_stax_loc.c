@@ -21,7 +21,7 @@
 #include "view.h"
 #include "view_old.h"
 #include "common.h"
-#include "app_main.h"
+
 
 #include "os.h"
 #include "cx.h"

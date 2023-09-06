@@ -15,6 +15,8 @@
 *  limitations under the License.
 ********************************************************************************/
 #include "app_main.h"
+
+#include "crypto.h"
 #include "view.h"
 
 #include <os_io_seproxyhal.h>
@@ -32,6 +34,15 @@ main(void) {
         TRY
         {
             app_init();
+            // set the default bip32 path
+            uint32_t new_bip32_path[] = {
+                44 | 0x80000000,  // purpose
+                714 | 0x80000000,  // coin type (chain ID)
+                0 | 0x80000000,  // account
+                0,               // change (no change addresses for now)
+                0,               // address index
+            };
+            memcpy(hdPath, new_bip32_path, sizeof(new_bip32_path));
             app_main();
         }
         CATCH_OTHER(e)

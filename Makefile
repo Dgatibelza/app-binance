@@ -84,8 +84,9 @@ endif
 ifeq ($(TARGET_NAME),TARGET_NANOS)
     DEFINES       += IO_SEPROXYHAL_BUFFER_SIZE_B=128
 else ifeq ($(TARGET_NAME),TARGET_STAX)
-	DEFINES       += IO_SEPROXYHAL_BUFFER_SIZE_B=300
-	DEFINES       += NBGL_QRCODE
+	DEFINES       	+= IO_SEPROXYHAL_BUFFER_SIZE_B=300
+	DEFINES       	+= NBGL_QRCODE
+	SDK_SOURCE_PATH += qrcode
 else
     DEFINES       += IO_SEPROXYHAL_BUFFER_SIZE_B=300
     DEFINES       += HAVE_GLO096
@@ -140,8 +141,6 @@ APP_SOURCE_PATH += $(ZXLIB_DIR)/app/ui
 
 APP_SOURCE_PATH += deps/jsmn/src
 SDK_SOURCE_PATH += lib_stusb lib_u2f lib_stusb_impl
-
-# INCLUDES_PATH += deps/ledger-zxlib/include
 
 ifeq ($(TARGET_NAME),TARGET_NANOX)
 SDK_SOURCE_PATH += lib_blewbxx lib_blewbxx_impl

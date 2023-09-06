@@ -16,8 +16,9 @@
 #pragma once
 
 #include <stdint.h>
-// #include "crypto.h"
+#include "crypto.h"
 // #include "tx.h"
+#include "zxerror.h"
 #include "apdu_codes.h"
 #include <os_io_seproxyhal.h>
 #include "coin.h"
@@ -26,7 +27,7 @@ void app_sign();
 
 void app_set_hrp(char *p);
 
-extern uint8_t action_addr_len;
+extern uint16_t action_addrResponseLen;
 
 __Z_INLINE uint8_t app_fill_address(address_kind_e kind) {
     (void) kind;
@@ -34,21 +35,25 @@ __Z_INLINE uint8_t app_fill_address(address_kind_e kind) {
     // Put data directly in the apdu buffer
     MEMZERO(G_io_apdu_buffer, IO_APDU_BUFFER_SIZE);
 
+    zxerr_t err = zxerr_no_data;
     switch (kind) {
         case addr_secp256k1:
-            // action_addr_len = crypto_fillAddress(G_io_apdu_buffer, IO_APDU_BUFFER_SIZE - 2);
+            err  = crypto_fillAddress(G_io_apdu_buffer, IO_APDU_BUFFER_SIZE - 2, &action_addrResponseLen);
             break;
         default:
-            action_addr_len = 0;
             break;
     }
 
-    return action_addr_len;
+    if (err != zxerr_ok || action_addrResponseLen == 0) {
+        THROW(APDU_CODE_EXECUTION_ERROR);
+    }
+
+    return zxerr_ok;
 }
 
-__Z_INLINE void app_reply_address(void) {
-    set_code(G_io_apdu_buffer, action_addr_len, APDU_CODE_OK);
-    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, action_addr_len + 2);
+__Z_INLINE void app_reply_ok(void) {
+    set_code(G_io_apdu_buffer, 0, APDU_CODE_OK);
+    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, 2);
 }
 
 __Z_INLINE void app_reply_error() {
