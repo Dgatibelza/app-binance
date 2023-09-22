@@ -32,11 +32,6 @@ export const PAYLOAD_TYPE = {
   LAST: 0x02,
 }
 
-export const P2_VALUES = {
-  JSON: 0x0,
-  TEXTUAL: 0x1,
-}
-
 export const ERROR_CODE = {
   NoError: 0x9000,
 }

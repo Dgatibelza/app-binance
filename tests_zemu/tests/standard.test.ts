@@ -16,7 +16,7 @@
 
 import Zemu, { zondaxMainmenuNavigation, ButtonKind, ClickNavigation, TouchNavigation } from '@zondax/zemu'
 import { BNBApp } from './bnb_app/bnbApp'
-import { defaultOptions, DEVICE_MODELS, APP_SEED, example_tx_str_basic, example_tx_str_basic2, ibc_denoms } from './common'
+import { defaultOptions, DEVICE_MODELS, APP_SEED } from './common'
 import { Secp256k1HdWallet } from '@cosmjs/launchpad'
 import { stringToPath } from '@cosmjs/crypto'
 // @ts-ignore
@@ -156,6 +156,55 @@ describe('Standard', function () {
     }
   })
 
+  test.concurrent.each(DEVICE_MODELS)('sign basic normal', async function (m) {
+    const sim = new Zemu(m.path)
+    try {
+      await sim.start({ ...defaultOptions, model: m.name })
+      const app = new BNBApp(sim.getTransport())
+
+      const path = [44, 714, 0, 0, 0]
+      const tx_str_basic = `{"account_number":"12","chain_id":"bnbchain","data":null,"memo":"smiley!☺","msgs":[{"id":"BA36F0FAD74D8F41045463E4774F328F4AF779E5-4","ordertype":2,"price":1.612345678,"quantity":123.456,"sender":"bnc1hgm0p7khfk85zpz5v0j8wnej3a90w7098fpxyh","side":1,"symbol":"NNB-338_BNB","timeinforce":3}],"sequence":"3","source":"1"}`
+      //   const tx_str_basic = `{"account_number":"1","chain_id":"bnbchain","data":"DATA","memo":"","msgs":[{"inputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}],"outputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}]}],"sequence":"2","source":"1"}`
+      const tx = Buffer.from(tx_str_basic, 'utf-8')
+
+      // get address / publickey
+      const respPk = await app.getAddressAndPubKey(path, 'bnb')
+      expect(respPk.return_code).toEqual(0x9000)
+      expect(respPk.error_message).toEqual('No errors')
+      console.log(respPk)
+
+      // do not wait here..
+      const signatureRequest = app.sign(path, tx)
+
+      // Wait until we are not in the main menu
+      await sim.waitUntilScreenIsNot(sim.getMainMenuSnapshot())
+      await sim.compareSnapshotsAndApprove('.', `${m.prefix.toLowerCase()}-sign_basic`)
+
+      const resp = await signatureRequest
+      console.log(resp)
+
+      expect(resp.return_code).toEqual(0x9000)
+      expect(resp.error_message).toEqual('No errors')
+      expect(resp).toHaveProperty('signature')
+
+      console.log(resp)
+
+      // Now verify the signature
+      const hash = crypto.createHash('sha256')
+      const msgHash = Uint8Array.from(hash.update(tx).digest())
+
+      const signatureDER = resp.signature
+      const signature = secp256k1.signatureImport(Uint8Array.from(signatureDER))
+
+      const pk = Uint8Array.from(respPk.compressed_pk)
+
+      const signatureOk = secp256k1.ecdsaVerify(signature, msgHash, pk)
+      expect(signatureOk).toEqual(true)
+    } finally {
+      await sim.close()
+    }
+  })
+
   //   test.concurrent.each(DEVICE_MODELS)('show address HUGE', async function (m) {
   //     const sim = new Zemu(m.path)
   //     try {
@@ -212,51 +261,6 @@ describe('Standard', function () {
 
   //       expect(resp.bech32_address).toEqual('cosmos1ex7gkwwmq4vcgdwcalaq3t20pgwr37u6ntkqzh')
   //       expect(resp.compressed_pk.length).toEqual(33)
-  //     } finally {
-  //       await sim.close()
-  //     }
-  //   })
-
-  //   test.concurrent.each(DEVICE_MODELS)('sign basic normal', async function (m) {
-  //     const sim = new Zemu(m.path)
-  //     try {
-  //       await sim.start({ ...defaultOptions, model: m.name })
-  //       const app = new BNBApp(sim.getTransport())
-
-  //       const path = [44, 714, 0, 0, 0]
-  //       const tx = Buffer.from(JSON.stringify(example_tx_str_basic), "utf-8")
-
-  //       // get address / publickey
-  //       const respPk = await app.getAddressAndPubKey(path, 'bnb')
-  //       expect(respPk.return_code).toEqual(0x9000)
-  //       expect(respPk.error_message).toEqual('No errors')
-  //       console.log(respPk)
-
-  //       // do not wait here..
-  //       const signatureRequest = app.sign(path, tx)
-
-  //       // Wait until we are not in the main menu
-  //       await sim.waitUntilScreenIsNot(sim.getMainMenuSnapshot())
-  //       await sim.compareSnapshotsAndApprove('.', `${m.prefix.toLowerCase()}-sign_basic`)
-
-  //       const resp = await signatureRequest
-  //       console.log(resp)
-
-  //       expect(resp.return_code).toEqual(0x9000)
-  //       expect(resp.error_message).toEqual('No errors')
-  //       expect(resp).toHaveProperty('signature')
-
-  //       // Now verify the signature
-  //       const hash = crypto.createHash('sha256')
-  //       const msgHash = Uint8Array.from(hash.update(tx).digest())
-
-  //       const signatureDER = resp.signature
-  //       const signature = secp256k1.signatureImport(Uint8Array.from(signatureDER))
-
-  //       const pk = Uint8Array.from(respPk.compressed_pk)
-
-  //       const signatureOk = secp256k1.ecdsaVerify(signature, msgHash, pk)
-  //       expect(signatureOk).toEqual(true)
   //     } finally {
   //       await sim.close()
   //     }

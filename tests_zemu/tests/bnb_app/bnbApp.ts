@@ -13,11 +13,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  ******************************************************************************* */
-import { CHUNK_SIZE, CLA, INS, errorCodeToString, getVersion, processErrorResponse, ERROR_CODE, P2_VALUES } from './common'
+import { CHUNK_SIZE, CLA, INS, errorCodeToString, getVersion, processErrorResponse, ERROR_CODE } from './common'
 
 import Transport from '@ledgerhq/hw-transport'
-import { getPubKey, serializePathv1, signSendChunkv1 } from './commandsV1'
-import { publicKeyv2, serializePathv2, signSendChunkv2 } from './commandsV2'
 import { bech32 } from 'bech32'
 const crypto = require('crypto')
 // const bech32 = require('bech32')
@@ -52,23 +50,6 @@ export class BNBApp {
     const hashSha256 = crypto.createHash('sha256').update(pk).digest()
     const hashRip = new Ripemd160().update(hashSha256).digest()
     return bech32.encode(hrp, bech32.toWords(hashRip))
-  }
-
-  async serializePath(path: number[]) {
-    this.versionResponse = await getVersion(this.transport)
-
-    if (this.versionResponse.return_code !== ERROR_CODE.NoError) {
-      throw this.versionResponse
-    }
-
-    switch (this.versionResponse.major) {
-      case 1:
-        return serializePathv1(path)
-      case 2:
-        return serializePathv2(path)
-      default:
-        return Buffer.alloc(0)
-    }
   }
 
   async signGetChunks(path: number[], buffer: Buffer) {
@@ -193,10 +174,51 @@ export class BNBApp {
     }, processErrorResponse)
   }
 
+  async serializePath(path: number[]) {
+    this.versionResponse = await getVersion(this.transport)
+
+    if (this.versionResponse.return_code !== ERROR_CODE.NoError) {
+      throw this.versionResponse
+    }
+
+    if (path == null || path.length < 3) {
+      throw new Error('Invalid path.')
+    }
+    if (path.length > 10) {
+      throw new Error('Invalid path. Length should be <= 10')
+    }
+    const buf = Buffer.alloc(1 + 4 * path.length)
+    buf.writeUInt8(path.length, 0)
+    for (let i = 0; i < path.length; i += 1) {
+      let v = path[i]
+      if (i < 3) {
+        // eslint-disable-next-line no-bitwise
+        v |= 0x80000000 // Harden
+      }
+      buf.writeInt32LE(v, 1 + i * 4)
+    }
+    return buf
+  }
+
+  async getPubKey(data: Buffer) {
+    return this.transport.send(CLA, INS.INS_PUBLIC_KEY_SECP256K1, 0, 0, data, [ERROR_CODE.NoError]).then((response: any) => {
+      const errorCodeData = response.slice(-2)
+      const returnCode = errorCodeData[0] * 256 + errorCodeData[1]
+      const pk = Buffer.from(response.slice(0, 65))
+
+      return {
+        pk,
+        uncompressed_pk: pk,
+        return_code: returnCode,
+        error_message: errorCodeToString(returnCode),
+      }
+    }, processErrorResponse)
+  }
+
   async publicKey(path: number[]) {
     try {
       const serializedPath = await this.serializePath(path)
-      return getPubKey(this, serializedPath)
+      return this.getPubKey(serializedPath)
     } catch (e) {
       return processErrorResponse(e)
     }
@@ -241,23 +263,36 @@ export class BNBApp {
       .catch(err => processErrorResponse(err))
   }
 
-  async signSendChunk(chunkIdx: number, chunkNum: number, chunk: Buffer, txType = P2_VALUES.JSON) {
-    switch (this.versionResponse.major) {
-      case 1:
-        return signSendChunkv1(this, chunkIdx, chunkNum, chunk, txType)
-      case 2:
-        return signSendChunkv2(this, chunkIdx, chunkNum, chunk, txType)
-      default:
-        return {
-          return_code: 0x6400,
-          error_message: 'App Version is not supported',
+  async signSendChunk(chunkIdx: number, chunkNum: number, chunk: Buffer) {
+    return this.transport
+      .send(CLA, INS.SIGN_SECP256K1, chunkIdx, chunkNum, chunk, [ERROR_CODE.NoError, 0x6984, 0x6a80])
+      .then((response: any) => {
+        console.log('Signature request response!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        console.log(response)
+        const errorCodeData = response.slice(-2)
+        const returnCode = errorCodeData[0] * 256 + errorCodeData[1]
+        let errorMessage = errorCodeToString(returnCode)
+
+        if (returnCode === 0x6a80 || returnCode === 0x6984) {
+          errorMessage = `${errorMessage} : ${response.slice(0, response.length - 2).toString('ascii')}`
         }
-    }
+
+        let signature = null
+        if (response.length > 2) {
+          signature = response.slice(0, response.length - 2)
+        }
+
+        return {
+          signature,
+          return_code: returnCode,
+          error_message: errorMessage,
+        }
+      }, processErrorResponse)
   }
 
-  async sign(path: number[], buffer: Buffer, txType = P2_VALUES.JSON) {
+  async sign(path: number[], buffer: Buffer) {
     return this.signGetChunks(path, buffer).then(chunks => {
-      return this.signSendChunk(1, chunks.length, chunks[0], txType).then(async response => {
+      return this.signSendChunk(1, chunks.length, chunks[0]).then(async response => {
         let result = {
           return_code: response.return_code,
           error_message: response.error_message,
@@ -266,7 +301,7 @@ export class BNBApp {
 
         for (let i = 1; i < chunks.length; i += 1) {
           // eslint-disable-next-line no-await-in-loop
-          result = await this.signSendChunk(1 + i, chunks.length, chunks[i], txType)
+          result = await this.signSendChunk(1 + i, chunks.length, chunks[i])
           if (result.return_code !== ERROR_CODE.NoError) {
             break
           }

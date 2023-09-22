@@ -18,14 +18,14 @@
     "test": "yarn clean && jest --maxConcurrency 2"
   },
   "dependencies": {
-    "@zondax/zemu": "^0.44.0"
+    "@zondax/zemu": "^0.44.2"
   },
   "devDependencies": {
+    "@cosmjs/launchpad": "0.27.1",
     "@types/jest": "^29.5.3",
     "@types/ledgerhq__hw-transport": "^4.21.4",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
-    "@cosmjs/launchpad": "0.27.1",
     "bech32": "^2.0.0",
     "blakejs": "^1.1.1",
     "crypto-js": "4.1.1",
