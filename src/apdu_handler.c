@@ -226,6 +226,9 @@ __Z_INLINE void handleGetAddrSecp256K1(volatile uint32_t *flags, volatile uint32
         THROW(APDU_CODE_DATA_INVALID);
     }
 
+    // must be the last bip32 the user "saw" for signing to work.
+    memcpy(viewed_bip32_path, hdPath, sizeof(uint32_t) * HDPATH_LEN_DEFAULT);
+
     // When showing the address, we just return status ok. The address is not returned (cf. PROTOSPEC.md)
     if (showAddr) {
         view_review_init(addr_getItem, addr_getNumItems, app_reply_ok);
@@ -236,9 +239,6 @@ __Z_INLINE void handleGetAddrSecp256K1(volatile uint32_t *flags, volatile uint32
     
     *tx = action_addrResponseLen;
 
-    // must be the last bip32 the user "saw" for signing to work.
-    memcpy(viewed_bip32_path, hdPath, sizeof(uint32_t) * HDPATH_LEN_DEFAULT);
-    
     THROW(APDU_CODE_OK);
 
     return;
