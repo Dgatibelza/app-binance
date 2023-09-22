@@ -55,8 +55,6 @@ describe('Standard', function () {
       const app = new BNBApp(sim.getTransport())
       const resp = await app.getVersion()
 
-      console.log(resp)
-
       expect(resp.return_code).toEqual(0x9000)
       expect(resp.error_message).toEqual('No errors')
       expect(resp).toHaveProperty('test_mode')
