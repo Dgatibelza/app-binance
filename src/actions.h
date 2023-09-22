@@ -17,15 +17,10 @@
 
 #include <stdint.h>
 #include "crypto.h"
-// #include "tx.h"
 #include "zxerror.h"
 #include "apdu_codes.h"
 #include <os_io_seproxyhal.h>
 #include "coin.h"
-
-void app_sign();
-
-void app_set_hrp(char *p);
 
 extern uint16_t action_addrResponseLen;
 

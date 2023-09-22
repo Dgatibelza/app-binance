@@ -44,6 +44,8 @@ const uint8_t privateKeyDataTest[] = {
 };
 #endif
 
+uint16_t action_addrResponseLen;
+
 __Z_INLINE uint8_t extractHRP(uint32_t rx, uint32_t offset) {
     if (rx < offset + 1) {
         THROW(APDU_CODE_DATA_INVALID);

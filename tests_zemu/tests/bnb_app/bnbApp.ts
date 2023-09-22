@@ -267,8 +267,6 @@ export class BNBApp {
     return this.transport
       .send(CLA, INS.SIGN_SECP256K1, chunkIdx, chunkNum, chunk, [ERROR_CODE.NoError, 0x6984, 0x6a80])
       .then((response: any) => {
-        console.log('Signature request response!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        console.log(response)
         const errorCodeData = response.slice(-2)
         const returnCode = errorCodeData[0] * 256 + errorCodeData[1]
         let errorMessage = errorCodeToString(returnCode)

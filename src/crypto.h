@@ -59,8 +59,3 @@ extern uint8_t bech32_hrp_len;
 extern char bech32_hrp[MAX_BECH32_HRP_LEN + 1];
 
 zxerr_t crypto_fillAddress(uint8_t *buffer, uint16_t buffer_len, uint16_t *addrResponseLen);
-
-// uint16_t crypto_sign(uint8_t *signature,
-//                      uint16_t signatureMaxlen,
-//                      const uint8_t *message,
-//                      uint16_t messageLen);
