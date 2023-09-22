@@ -36,11 +36,11 @@ main(void) {
             app_init();
             // set the default bip32 path
             uint32_t new_bip32_path[] = {
-                44 | 0x80000000,  // purpose
-                714 | 0x80000000,  // coin type (chain ID)
-                0 | 0x80000000,  // account
-                0,               // change (no change addresses for now)
-                0,               // address index
+                HDPATH_0_DEFAULT,  // purpose
+                HDPATH_1_DEFAULT,  // coin type (chain ID)
+                HDPATH_2_DEFAULT,  // account
+                HDPATH_3_DEFAULT,  // change (no change addresses for now)
+                HDPATH_4_DEFAULT,  // address index
             };
             memcpy(hdPath, new_bip32_path, sizeof(new_bip32_path));
             app_main();

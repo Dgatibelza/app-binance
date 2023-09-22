@@ -1,5 +1,5 @@
 /*******************************************************************************
-*   (c) 2018 ZondaX GmbH
+*  (c) 2019 Zondax GmbH
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -15,79 +15,107 @@
 ********************************************************************************/
 
 #include "tx.h"
-#include "../view_old.h"
 #include "apdu_codes.h"
-#include "json_parser.h"
 #include "buffering.h"
+#include "parser.h"
+#include <string.h>
+#include "zxmacros.h"
+
+#if defined(TARGET_NANOX) || defined(TARGET_NANOS2) || defined(TARGET_STAX)
+#define RAM_BUFFER_SIZE 8192
+#define FLASH_BUFFER_SIZE 16384
+#elif defined(TARGET_NANOS)
+#define RAM_BUFFER_SIZE 256
+#define FLASH_BUFFER_SIZE 8192
+#endif
 
 // Ram
-#define RAM_BUFFER_SIZE 500
 uint8_t ram_buffer[RAM_BUFFER_SIZE];
 
 // Flash
-#define FLASH_BUFFER_SIZE 10000
-typedef struct {
+typedef struct
+{
     uint8_t buffer[FLASH_BUFFER_SIZE];
 } storage_t;
 
-const storage_t N_appdata_impl __attribute__ ((aligned(64)));
-#define N_appdata (*(volatile storage_t *)PIC(&N_appdata_impl))
+#if defined(TARGET_NANOS) || defined(TARGET_NANOX) || defined(TARGET_NANOS2) || defined(TARGET_STAX)
+storage_t NV_CONST N_appdata_impl __attribute__((aligned(64)));
+#define N_appdata (*(NV_VOLATILE storage_t *)PIC(&N_appdata_impl))
+#endif
 
-parsed_json_t parsed_transaction;
+parser_context_t ctx_parsed_tx;
 
-// void update_ram(buffer_state_t *buffer, uint8_t *data, int size) {
-//     os_memmove(buffer->data + buffer->pos, data, size);
-// }
-
-// void update_flash(buffer_state_t *buffer, uint8_t *data, int size) {
-//     nvm_write((void *) buffer->data + buffer->pos, data, size);
-// }
-
-void tx_initialize() {
+void tx_initialize()
+{
     buffering_init(
         ram_buffer,
         sizeof(ram_buffer),
-        N_appdata.buffer,
-        sizeof(N_appdata.buffer)
-    );
+        (uint8_t *)N_appdata.buffer,
+        sizeof(N_appdata.buffer));
 }
 
-void transaction_reset() {
+void tx_reset()
+{
     buffering_reset();
 }
 
-uint32_t transaction_append(unsigned char *buffer, uint32_t length) {
+uint32_t tx_append(unsigned char *buffer, uint32_t length)
+{
     return buffering_append(buffer, length);
 }
 
-uint32_t transaction_get_buffer_length() {
+uint32_t tx_get_buffer_length()
+{
     return buffering_get_buffer()->pos;
 }
 
-uint8_t *transaction_get_buffer() {
+uint8_t *tx_get_buffer()
+{
     return buffering_get_buffer()->data;
 }
 
-const char* transaction_parse() {
-    const char *transaction_buffer = (const char *) transaction_get_buffer();
-    const char* error_msg = json_parse_s(&parsed_transaction, transaction_buffer, transaction_get_buffer_length());
-    if (error_msg != NULL) {
-        return error_msg;
-    }
-    error_msg = json_validate(&parsed_transaction, transaction_buffer);
-    if (error_msg != NULL) {
-        return error_msg;
+static parser_tx_t tx_obj;
+
+const char *tx_parse()
+{
+    MEMZERO(&tx_obj, sizeof(tx_obj));
+
+    uint8_t err = parser_parse(&ctx_parsed_tx,
+                               tx_get_buffer(),
+                               tx_get_buffer_length());
+    zemu_log_stack("parse|parsed");
+
+    if (err != parser_ok)
+    {
+        return parser_getErrorDescription(err);
     }
 
-    parsing_context_t context;
-    context.tx = transaction_buffer;
-    context.max_chars_per_key_line = MAX_CHARS_PER_KEY_LINE;
-    context.max_chars_per_value_line = MAX_CHARS_PER_VALUE_LINE;
-    context.parsed_tx = &parsed_transaction;
+    err = parser_validate(&ctx_parsed_tx);
+    CHECK_APP_CANARY()
 
-    set_parsing_context(context);
-    set_copy_delegate(&os_memmove);
+    if (err != parser_ok)
+    {
+        return parser_getErrorDescription(err);
+    }
+
     return NULL;
+}
+
+void tx_parse_reset()
+{
+    MEMZERO(&tx_obj, sizeof(tx_obj));
+}
+
+zxerr_t tx_getNumItems(uint8_t *num_items)
+{
+    parser_error_t err = parser_getNumItems(&ctx_parsed_tx, num_items);
+
+    if (err != parser_ok)
+    {
+        return zxerr_no_data;
+    }
+
+    return zxerr_ok;
 }
 
 zxerr_t tx_getItem(int8_t displayIdx,
@@ -121,4 +149,3 @@ zxerr_t tx_getItem(int8_t displayIdx,
 
     return zxerr_ok;
 }
-

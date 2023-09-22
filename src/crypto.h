@@ -52,9 +52,6 @@ bool validate_bnc_hrp(void);
 
 extern uint32_t hdPath[HDPATH_LEN_DEFAULT];
 
-// extern uint8_t bip32_depth;
-// extern uint32_t bip32_path[5];
-
 extern uint8_t viewed_bip32_depth;
 extern uint32_t viewed_bip32_path[5];
 

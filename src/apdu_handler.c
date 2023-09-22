@@ -26,8 +26,7 @@
 #include "actions.h"
 #include "coin.h"
 #include "view.h"
-#include "view_old.h"
-#include "lib/tx.h"
+#include "common/tx.h"
 #include "crypto.h"
 #include "zxmacros.h"
 #include "apdu_codes.h"
@@ -44,8 +43,6 @@ const uint8_t privateKeyDataTest[] = {
         0x7e, 0x9b, 0x5d, 0x55, 0xbf, 0x81, 0x3b, 0xd4
 };
 #endif
-
-sigtype_t current_sigtype;
 
 __Z_INLINE uint8_t extractHRP(uint32_t rx, uint32_t offset) {
     if (rx < offset + 1) {
@@ -71,15 +68,13 @@ __Z_INLINE void extractHDPath(uint32_t rx, uint32_t offset) {
     }
 
     MEMCPY(hdPath, G_io_apdu_buffer + offset, sizeof(uint32_t) * HDPATH_LEN_DEFAULT);
-    PRINTF(" HDPATH: %.*H\n", sizeof(uint32_t) * HDPATH_LEN_DEFAULT, hdPath);
+    
     // Check values
     if (hdPath[0] != HDPATH_0_DEFAULT ||
         hdPath[1] != HDPATH_1_DEFAULT ||
-        hdPath[3] != HDPATH_3_DEFAULT) {
+        hdPath[2] != HDPATH_2_DEFAULT) {
         THROW(APDU_CODE_DATA_INVALID);
     }
-
-    PRINTF(" Validated HDPATH\n ");
 
     // Limit values unless the app is running in expert mode
     if (!app_mode_expert()) {
@@ -99,12 +94,12 @@ bool process_chunk(volatile uint32_t *tx, uint32_t rx, bool getBip32) {
         THROW(APDU_CODE_DATA_INVALID);
     }
 
+
     if (packageIndex == 1) {
         tx_initialize();
-        transaction_reset();
+        tx_reset();
         if (getBip32) {
-            extractHDPath(rx, offset);
-            
+            extractHDPath(rx, offset + 1);
             // must be the last bip32 the user "saw" for signing to work.
             if (memcmp(hdPath, viewed_bip32_path, HDPATH_LEN_DEFAULT) != 0) {
                 THROW(APDU_CODE_DATA_INVALID);
@@ -114,39 +109,11 @@ bool process_chunk(volatile uint32_t *tx, uint32_t rx, bool getBip32) {
         }
     }
 
-    if (transaction_append(&(G_io_apdu_buffer[offset]), rx - offset) != rx - offset) {
+    if (tx_append(&(G_io_apdu_buffer[offset]), rx - offset) != rx - offset) {
         THROW(APDU_CODE_OUTPUT_BUFFER_TOO_SMALL);
     }
 
     return packageIndex == packageCount;
-}
-
-int tx_getData(
-        char *title, int max_title_length,
-        char *key, int max_key_length,
-        char *value, int max_value_length,
-        int page_index,
-        int chunk_index,
-        int *page_count_out,
-        int *chunk_count_out) {
-
-    *page_count_out = transaction_get_display_pages();
-
-    switch (current_sigtype) {
-        case SECP256K1:
-            snprintf(title, max_title_length, "PREVIEW - %02d/%02d", page_index + 1, *page_count_out);
-            break;
-        default:
-            snprintf(title, max_title_length, "INVALID!");
-            break;
-    }
-
-    *chunk_count_out = transaction_get_display_key_value(
-            key, max_key_length,
-            value, max_value_length,
-            page_index, chunk_index);
-
-    return 0;
 }
 
 void tx_accept_sign() {
@@ -157,36 +124,29 @@ void tx_accept_sign() {
 
     unsigned int length = 0;
     int result = 0;
-    switch (current_sigtype) {
-        case SECP256K1:
-            os_perso_derive_node_bip32(
-                    CX_CURVE_256K1,
-                    hdPath, HDPATH_LEN_DEFAULT,
-                    privateKeyData, NULL);
+    
+    os_perso_derive_node_bip32(
+            CX_CURVE_256K1,
+            hdPath, HDPATH_LEN_DEFAULT,
+            privateKeyData, NULL);
 
-            keys_secp256k1(&publicKey, &privateKey, privateKeyData);
-            memset(privateKeyData, 0, 32);
+    keys_secp256k1(&publicKey, &privateKey, privateKeyData);
+    memset(privateKeyData, 0, 32);
 
-            result = sign_secp256k1(
-                    transaction_get_buffer(),
-                    transaction_get_buffer_length(),
-                    G_io_apdu_buffer,
-                    IO_APDU_BUFFER_SIZE,
-                    &length,
-                    &privateKey);
-            break;
-        default:
-            THROW(APDU_CODE_INS_NOT_SUPPORTED);
-            break;
-    }
+    result = sign_secp256k1(
+            tx_get_buffer(),
+            tx_get_buffer_length(),
+            G_io_apdu_buffer,
+            IO_APDU_BUFFER_SIZE,
+            &length,
+            &privateKey);
+      
     if (result == 1) {
         set_code(G_io_apdu_buffer, length, APDU_CODE_OK);
         io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, length + 2);
-        view_display_signing_success();
     } else {
         set_code(G_io_apdu_buffer, length, APDU_CODE_SIGN_VERIFY_ERROR);
         io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, length + 2);
-        view_display_signing_error();
     }
 }
 
@@ -283,6 +243,25 @@ __Z_INLINE void handleGetAddrSecp256K1(volatile uint32_t *flags, volatile uint32
 }
 
 
+__Z_INLINE void handleSignSecp256K1(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx){
+    if (!process_chunk(tx, rx, true))
+        THROW(APDU_CODE_OK);
+
+    const char *error_msg = tx_parse();
+
+    if (error_msg != NULL) {
+        int error_msg_length = strlen(error_msg);
+        MEMCPY(G_io_apdu_buffer, error_msg, error_msg_length);
+        *tx += (error_msg_length);
+        THROW(APDU_CODE_DATA_INVALID);
+    }
+
+    CHECK_APP_CANARY()
+    view_review_init(tx_getItem, tx_getNumItems, tx_accept_sign);
+    view_review_show(REVIEW_TXN);
+    *flags |= IO_ASYNCH_REPLY;
+}
+
 void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
     uint16_t sw = 0;
 
@@ -322,25 +301,7 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
                 }
 
                 case INS_SIGN_SECP256K1: {
-                    current_sigtype = SECP256K1;
-                    if (!process_chunk(tx, rx, true))
-                        THROW(APDU_CODE_OK);
-
-                    const char *error_msg = transaction_parse();
-                    if (error_msg != NULL) {
-                        int error_msg_length = strlen(error_msg);
-                        os_memmove(G_io_apdu_buffer, error_msg, error_msg_length);
-                        *tx += (error_msg_length);
-                        THROW(APDU_CODE_BAD_KEY_HANDLE);
-                    }
-
-                    //view_set_handlers(tx_getData, tx_accept_sign, tx_reject);
-                    //view_tx_show(0);
-
-                    view_review_init(tx_getItem, tx_getNumItems, app_sign);
-                    view_review_show(REVIEW_TXN);
-
-                    *flags |= IO_ASYNCH_REPLY;
+                    handleSignSecp256K1(flags, tx, rx);
                     break;
                 }
 

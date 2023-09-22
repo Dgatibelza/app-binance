@@ -59,7 +59,7 @@ typedef enum {
 #define VIEW_ADDRESS_LAST_PAGE_DEFAULT      0
 
 #define MENU_MAIN_APP_LINE1                APPNAME
-#define MENU_MAIN_APP_LINE2                "ready"
+#define MENU_MAIN_APP_LINE2                "Ready"
 #define APPVERSION_LINE1                   "Version:"
 #define APPVERSION_LINE2                   ("v" APPVERSION)
 
@@ -69,6 +69,22 @@ typedef enum {
 #define COIN_DEFAULT_DENOM_BASE             "BNB"
 #define COIN_DEFAULT_DENOM_REPR             "BNB"
 #define COIN_DEFAULT_DENOM_FACTOR           8
+#define COIN_DEFAULT_DENOM_TRIMMING         6
+
+// Coin denoms may be up to 128 characters long
+// https://github.com/cosmos/cosmos-sdk/blob/master/types/coin.go#L780
+// https://github.com/cosmos/ibc-go/blob/main/docs/architecture/adr-001-coin-source-tracing.md
+#define COIN_DENOM_MAXSIZE                  129
+#define COIN_AMOUNT_MAXSIZE                 50
+
+#define COIN_MAX_CHAINID_LEN                20
+#define INDEXING_TMP_KEYSIZE 70
+#define INDEXING_TMP_VALUESIZE 70
+#define INDEXING_GROUPING_REF_TYPE_SIZE 70
+#define INDEXING_GROUPING_REF_FROM_SIZE 70
+
+#define MENU_MAIN_APP_LINE2_SECRET         "?"
+#define COIN_SECRET_REQUIRED_CLICKS         0
 
 #ifdef __cplusplus
 }

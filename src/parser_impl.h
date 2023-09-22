@@ -1,6 +1,5 @@
 /*******************************************************************************
-*   (c) 2016 Ledger
-*   (c) 2018, 2019 ZondaX GmbH
+*  (c) 2019 Zondax GmbH
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -16,15 +15,29 @@
 ********************************************************************************/
 #pragma once
 
-#include "os.h"
-#include "cx.h"
-#include "view_common.h"
+#include "parser_common.h"
+#include <zxmacros.h>
+#include "zxtypes.h"
+#include "json/json_parser.h"
+#include "parser_txdef.h"
 
-// Initialize and show control
-void viewconf_start(int start_page,
-                    bool single_page,
-                    viewctl_delegate_getData func_update,
-                    viewctl_delegate_ready func_ready,
-                    viewctl_delegate_exit func_exit,
-                    viewctl_delegate_accept func_accept,
-                    viewctl_delegate_reject func_reject);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    char str1[50];
+    char str2[50];
+} key_subst_t;
+
+extern parser_tx_t parser_tx_obj;
+
+parser_error_t parser_init(parser_context_t *ctx,
+                           const uint8_t *buffer,
+                           size_t bufferSize);
+
+parser_error_t _readTx(parser_context_t *c, parser_tx_t *v);
+
+#ifdef __cplusplus
+}
+#endif

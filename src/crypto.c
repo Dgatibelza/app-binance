@@ -20,14 +20,11 @@
 #include "apdu_codes.h"
 #include "coin.h"
 #include "zxmacros.h"
-#include "lib/tx.h"
+#include "common/tx.h"
 
 //////////
 
 uint32_t hdPath[HDPATH_LEN_DEFAULT];
-
-// uint8_t bip32_depth;
-// uint32_t bip32_path[5];
 
 // the last "viewed" bip32 path is an extra check for security,
 // to ensure that the user has "seen" the address they are using before signing.
@@ -35,11 +32,8 @@ uint32_t hdPath[HDPATH_LEN_DEFAULT];
 uint8_t viewed_bip32_depth;
 uint32_t viewed_bip32_path[HDPATH_LEN_DEFAULT];
 
-// uint32_t hdPath[HDPATH_LEN_DEFAULT];
-
 uint8_t bech32_hrp_len;
 char bech32_hrp[MAX_BECH32_HRP_LEN + 1];
-// address_encoding_e encoding;
 
 void keys_secp256k1(cx_ecfp_public_key_t *publicKey,
                     cx_ecfp_private_key_t *privateKey,
@@ -148,97 +142,6 @@ __Z_INLINE zxerr_t compressPubkey(const uint8_t *pubkey, uint16_t pubkeyLen, uin
     output[0] = pubkey[64] & 1 ? 0x03 : 0x02; // "Compress" public key in place
     return zxerr_ok;
 }
-
-// zxerr_t crypto_sign(uint8_t *signature,
-//                     uint16_t signatureMaxlen,
-//                     uint16_t *sigSize) {
-//     uint8_t messageDigest[CX_SHA256_SIZE] = {0};
-
-//     // Hash it
-//     const uint8_t *message = tx_get_buffer();
-//     const uint16_t messageLen = tx_get_buffer_length();
-
-//     switch (encoding) {
-//         case BECH32_COSMOS: {
-//             cx_hash_sha256(message, messageLen, messageDigest, CX_SHA256_SIZE);
-//             break;
-//         }
-
-//         case BECH32_ETH: {
-//             cx_sha3_t sha3 = {0};
-//             cx_err_t status = cx_keccak_init_no_throw(&sha3, 256);
-//             if (status != CX_OK) {
-//                  return zxerr_ledger_api_error;
-//             }
-//             status = cx_hash_no_throw((cx_hash_t*) &sha3, CX_LAST, message, messageLen, messageDigest, CX_SHA256_SIZE);
-//             if (status != CX_OK) {
-//                 return zxerr_ledger_api_error;
-//             }
-//             break;
-//         }
-
-//         default:
-//             return zxerr_unknown;
-//     }
-
-//     cx_ecfp_private_key_t cx_privateKey = {0};
-//     uint8_t privateKeyData[32] = {0};
-//     unsigned int info = 0;
-//     volatile int signatureLength = 0;
-
-//     volatile zxerr_t err = zxerr_unknown;
-//     BEGIN_TRY
-//     {
-//         TRY
-//         {
-//             // Generate keys
-//             os_perso_derive_node_bip32(CX_CURVE_SECP256K1,
-//                                        hdPath,
-//                                        HDPATH_LEN_DEFAULT,
-//                                        privateKeyData, NULL);
-
-//             cx_ecfp_init_private_key(CX_CURVE_SECP256K1, privateKeyData, 32, &cx_privateKey);
-
-//             // Sign
-//             signatureLength = cx_ecdsa_sign(&cx_privateKey,
-//                                             CX_RND_RFC6979 | CX_LAST,
-//                                             CX_SHA256,
-//                                             messageDigest,
-//                                             CX_SHA256_SIZE,
-//                                             signature,
-//                                             signatureMaxlen,
-//                                             &info);
-//             err = zxerr_ok;
-//         }
-//         CATCH_OTHER(e) {
-//             err = zxerr_ledger_api_error;
-//         }
-//         FINALLY {
-//             MEMZERO(&cx_privateKey, sizeof(cx_privateKey));
-//             MEMZERO(privateKeyData, 32);
-//         }
-//     }
-//     END_TRY;
-
-//     *sigSize = signatureLength;
-//     return err;
-// }
-
-// bool extract_hrp(uint8_t *len, char *hrp, uint32_t rx, uint32_t offset) {
-    // if (rx < offset + 1) {
-    //     THROW(APDU_CODE_DATA_INVALID);
-    // }
-
-    // *len = G_io_apdu_buffer[offset];
-
-    // if (*len == 0 || *len > MAX_BECH32_HRP_LEN) {
-    //     THROW(APDU_CODE_DATA_INVALID);
-    // }
-
-    // memcpy(hrp, G_io_apdu_buffer + offset + 1, *len);
-    // hrp[*len] = 0; // zero terminate
-    // return 1;
-// }
 
 void set_hrp(char *hrp) {
     strcpy(bech32_hrp, hrp);
