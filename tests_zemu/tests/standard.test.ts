@@ -205,64 +205,119 @@ describe('Standard', function () {
     }
   })
 
-  //   test.concurrent.each(DEVICE_MODELS)('show address HUGE', async function (m) {
-  //     const sim = new Zemu(dev.path)
-  //     try {
-  //       await sim.start({
-  //         ...defaultOptions,
-  //         model: dev.name,
-  //         approveKeyword: dev.name === 'stax' ? 'QR' : '',
-  //         approveAction: ButtonKind.ApproveTapButton,
-  //       })
-  //       const app = new BNBApp(sim.getTransport())
+  test.each(DEVICE_MODELS)('sign tx msgs depth level > 2 ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
+    try {
+      await sim.start({ ...defaultOptions, model: dev.name })
+      const app = new BNBApp(sim.getTransport())
 
-  //       // Derivation path. First 3 items are automatically hardened!
-  //       const path = [44, 714, 2147483647, 0, 4294967295]
-  //       const resp = await app.showAddressAndPubKey(path, 'bnb')
-  //       console.log(resp)
+      const path = [44, 714, 0, 0, 0]
+      const tx_str_basic = `{"account_number":"1","chain_id":"Binance-Chain-Tigris","data":"DATA","memo":"MEMO","msgs":[{"level 1":[{"level 2":[{"level 3":"toto"}]}]}],"sequence":"2","source":"1"}`
+      const tx = Buffer.from(tx_str_basic, 'utf-8')
 
-  //       expect(resp.return_code).toEqual(0x6985)
-  //       expect(resp.error_message).toEqual('Conditions not satisfied')
-  //     } finally {
-  //       await sim.close()
-  //     }
-  //   })
+      // get address / publickey
+      const respPk = await app.getAddressAndPubKey(path, 'bnb')
+      expect(respPk.return_code).toEqual(0x9000)
+      expect(respPk.error_message).toEqual('No errors')
 
-  //   test.concurrent.each(DEVICE_MODELS)('show address HUGE Expect', async function (m) {
-  //     const sim = new Zemu(dev.path)
-  //     try {
-  //       await sim.start({
-  //         ...defaultOptions,
-  //         model: dev.name,
-  //         approveKeyword: dev.name === 'stax' ? 'Path' : '',
-  //         approveAction: ButtonKind.ApproveTapButton,
-  //       })
-  //       const app = new BNBApp(sim.getTransport())
+      // do not wait here..
+      const signatureRequest = app.sign(path, tx)
 
-  //       // Activate expert mode
-  //       await sim.toggleExpertMode();
+      // Wait until we are not in the main menu
+      await sim.waitUntilScreenIsNot(sim.getMainMenuSnapshot())
+      await sim.compareSnapshotsAndApprove('.', `${dev.prefix.toLowerCase()}-sign_max_depth`)
 
-  //       // Derivation path. First 3 items are automatically hardened!
-  //       const path = [44, 714, 2147483647, 0, 4294967295]
-  //       const respRequest = app.showAddressAndPubKey(path, 'bnb')
+      const resp = await signatureRequest
 
-  //       // Wait until we are not in the main menu
-  //       await sim.waitUntilScreenIsNot(sim.getMainMenuSnapshot())
-  //       await sim.compareSnapshotsAndApprove('.', `${dev.prefix.toLowerCase()}-show_address_huge`)
+      //   expect(resp.return_code).toEqual(0x9000)
+      expect(resp.error_message).toEqual('No errors')
+      expect(resp).toHaveProperty('signature')
 
-  //       const resp = await respRequest
-  //       console.log(resp)
+      // Now verify the signature
+      const hash = crypto.createHash('sha256')
+      const msgHash = Uint8Array.from(hash.update(tx).digest())
 
-  //       expect(resp.return_code).toEqual(0x9000)
-  //       expect(resp.error_message).toEqual('No errors')
+      const signatureDER = resp.signature
+      const signature = secp256k1.signatureImport(Uint8Array.from(signatureDER))
 
-  //       expect(resp).toHaveProperty('bech32_address')
-  //       expect(resp).toHaveProperty('compressed_pk')
+      const pk = Uint8Array.from(respPk.compressed_pk)
 
-  //       expect(resp.bech32_address).toEqual('cosmos1ex7gkwwmq4vcgdwcalaq3t20pgwr37u6ntkqzh')
-  //       expect(resp.compressed_pk.length).toEqual(33)
-  //     } finally {
-  //       await sim.close()
-  //     }
-  //   })
+      const signatureOk = secp256k1.ecdsaVerify(signature, msgHash, pk)
+      expect(signatureOk).toEqual(true)
+    } finally {
+      await sim.close()
+    }
+  })
+
+  test.each(DEVICE_MODELS)('wrong tx with missing mandatory field ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
+    try {
+      await sim.start({ ...defaultOptions, model: dev.name })
+      const app = new BNBApp(sim.getTransport())
+
+      const path = [44, 714, 0, 0, 0]
+      const tx_str_basic = `{"account_number":"1","chain_id":"Binance-Chain-Tigris","data":"DATA","memo":"MEMO","msgs":[{"inputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":"10000000000","denom":"BNB"}]}],"outputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}]}],"sequence":"2"}`
+      const tx = Buffer.from(tx_str_basic, 'utf-8')
+
+      // get address / publickey
+      const respPk = await app.getAddressAndPubKey(path, 'bnb')
+      expect(respPk.return_code).toEqual(0x9000)
+      expect(respPk.error_message).toEqual('No errors')
+
+      const resp = await app.sign(path, tx)
+
+      expect(resp.return_code).toEqual(0x6984)
+      expect(resp.error_message).toEqual('Data is invalid : JSON Missing data')
+    } finally {
+      await sim.close()
+    }
+  })
+
+  test.each(DEVICE_MODELS)('wrong tx with white space in corpus ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
+    try {
+      await sim.start({ ...defaultOptions, model: dev.name })
+      const app = new BNBApp(sim.getTransport())
+
+      const path = [44, 714, 0, 0, 0]
+      const tx_str_basic = `{ "account_number":"1","chain_id":"Binance-Chain-Tigris","data":"DATA","memo":"MEMO","msgs":[{"inputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":"10000000000","denom":"BNB"}]}],"outputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}]}],"sequence":"2"}`
+      const tx = Buffer.from(tx_str_basic, 'utf-8')
+
+      // get address / publickey
+      const respPk = await app.getAddressAndPubKey(path, 'bnb')
+      expect(respPk.return_code).toEqual(0x9000)
+      expect(respPk.error_message).toEqual('No errors')
+
+      const resp = await app.sign(path, tx)
+
+      expect(resp.return_code).toEqual(0x6984)
+      expect(resp.error_message).toEqual('Data is invalid : JSON Contains whitespace in the corpus')
+    } finally {
+      await sim.close()
+    }
+  })
+
+  test.each(DEVICE_MODELS)('wrong tx with keys unsorted ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
+    try {
+      await sim.start({ ...defaultOptions, model: dev.name })
+      const app = new BNBApp(sim.getTransport())
+
+      const path = [44, 714, 0, 0, 0]
+      const tx_str_basic = `{"chain_id":"Binance-Chain-Tigris","account_number":"1","data":"DATA","memo":"MEMO","msgs":[{"inputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":"10000000000","denom":"BNB"}]}],"outputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}]}],"sequence":"2"}`
+      const tx = Buffer.from(tx_str_basic, 'utf-8')
+
+      // get address / publickey
+      const respPk = await app.getAddressAndPubKey(path, 'bnb')
+      expect(respPk.return_code).toEqual(0x9000)
+      expect(respPk.error_message).toEqual('No errors')
+
+      const resp = await app.sign(path, tx)
+
+      expect(resp.return_code).toEqual(0x6984)
+      expect(resp.error_message).toEqual('Data is invalid : JSON Dictionaries are not sorted')
+    } finally {
+      await sim.close()
+    }
+  })
 })

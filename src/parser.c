@@ -29,7 +29,6 @@ parser_error_t parser_parse(parser_context_t *ctx,
                             const uint8_t *data,
                             size_t dataLen) {
     CHECK_PARSER_ERR(tx_display_readTx(ctx, data, dataLen))
-    extraDepthLevel =false;
     return parser_ok;
 }
 

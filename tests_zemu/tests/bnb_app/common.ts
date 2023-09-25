@@ -38,12 +38,20 @@ export const ERROR_CODE = {
 
 const ERROR_DESCRIPTION: any = {
   0x9000: 'No errors',
+  0x9001: 'Device is busy',
   0x6400: 'Execution Error',
   0x6982: 'Empty Buffer',
+  0x6983: 'Output buffer too small',
+  0x6984: 'Data is invalid',
+  0x6985: 'Conditions not satisfied',
   0x6986: 'Command not allowed',
+  0x6987: 'Transaction not initialized',
+  0x6a80: 'Bad key handle',
+  0x6b00: 'Invalid P1/P2',
   0x6d00: 'Instruction not supported',
   0x6e00: 'CLA not supported',
   0x6f00: 'Unknown error',
+  0x6f01: 'Sign/verify error',
 }
 
 export function errorCodeToString(statusCode: number) {
