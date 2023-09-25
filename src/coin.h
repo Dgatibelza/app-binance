@@ -64,7 +64,7 @@ typedef enum {
 #define APPVERSION_LINE2                   ("v" APPVERSION)
 
 #define CRYPTO_BLOB_SKIP_BYTES              0
-#define COIN_DEFAULT_CHAINID                "binance-chain-mainnet"
+#define COIN_DEFAULT_CHAINID                "Binance-Chain-Tigris"
 
 #define COIN_DEFAULT_DENOM_BASE             "BNB"
 #define COIN_DEFAULT_DENOM_REPR             "BNB"
@@ -77,7 +77,7 @@ typedef enum {
 #define COIN_DENOM_MAXSIZE                  129
 #define COIN_AMOUNT_MAXSIZE                 50
 
-#define COIN_MAX_CHAINID_LEN                20
+#define COIN_MAX_CHAINID_LEN                30
 #define INDEXING_TMP_KEYSIZE 70
 #define INDEXING_TMP_VALUESIZE 70
 #define INDEXING_GROUPING_REF_TYPE_SIZE 70
