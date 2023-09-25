@@ -19,9 +19,9 @@ const Resolve = require('path').resolve
 
 export const APP_SEED = 'equip will roof matter pink blind book anxiety banner elbow sun young'
 
-const APP_PATH_S = Resolve('../build/nanos/bin/app.elf')
-const APP_PATH_X = Resolve('../build/nanox/bin/app.elf')
-const APP_PATH_SP = Resolve('../build/nanos2/bin/app.elf')
+// const APP_PATH_S = Resolve('../build/nanos/bin/app.elf')
+// const APP_PATH_X = Resolve('../build/nanox/bin/app.elf')
+// const APP_PATH_SP = Resolve('../build/nanos2/bin/app.elf')
 const APP_PATH_ST = Resolve('../build/stax/bin/app.elf')
 
 export const defaultOptions = {
@@ -31,9 +31,16 @@ export const defaultOptions = {
   X11: false,
 }
 
-export const DEVICE_MODELS: IDeviceModel[] = [
-  { name: 'nanos', prefix: 'S', path: APP_PATH_S },
-  { name: 'nanox', prefix: 'X', path: APP_PATH_X },
-  { name: 'nanosp', prefix: 'SP', path: APP_PATH_SP },
-  { name: 'stax', prefix: 'ST', path: APP_PATH_ST },
+// export const DEVICE_MODELS: IDeviceModel[] = [
+//   //   { name: 'nanos', prefix: 'S', path: APP_PATH_S },
+//   //   { name: 'nanox', prefix: 'X', path: APP_PATH_X },
+//   //   { name: 'nanosp', prefix: 'SP', path: APP_PATH_SP },
+//   { name: 'stax', prefix: 'ST', path: APP_PATH_ST },
+// ]
+
+export const DEVICE_MODELS: { dev: IDeviceModel }[] = [
+  { dev: { name: 'stax', prefix: 'ST', path: APP_PATH_ST } },
+  //   { dev: { name: 'nanos', prefix: 'S', path: APP_PATH_S } },
+  //   { dev: { name: 'nanox', prefix: 'X', path: APP_PATH_X } },
+  //   { dev: { name: 'nanosp', prefix: 'SP', path: APP_PATH_SP } },
 ]

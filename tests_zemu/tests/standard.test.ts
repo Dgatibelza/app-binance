@@ -28,30 +28,32 @@ import { ActionKind, IButton, INavElement } from '@zondax/zemu/dist/types'
 jest.setTimeout(90000)
 
 describe('Standard', function () {
-  test.concurrent.each(DEVICE_MODELS)('can start and stop container', async function (m) {
-    const sim = new Zemu(m.path)
+  test.each(DEVICE_MODELS)('can start and stop container ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
     try {
-      await sim.start({ ...defaultOptions, model: m.name })
+      await sim.start({ ...defaultOptions, model: dev.name })
     } finally {
       await sim.close()
+      expect(true).toEqual(true)
     }
   })
 
-  test.concurrent.each(DEVICE_MODELS)('main menu', async function (m) {
-    const sim = new Zemu(m.path)
+  test.each(DEVICE_MODELS)('main menu ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
     try {
-      await sim.start({ ...defaultOptions, model: m.name })
-      const nav = zondaxMainmenuNavigation(m.name, [1, 0, 0, 4, -5])
-      await sim.navigateAndCompareSnapshots('.', `${m.prefix.toLowerCase()}-mainmenu`, nav.schedule)
+      await sim.start({ ...defaultOptions, model: dev.name })
+      const nav = zondaxMainmenuNavigation(dev.name, [1, 0, 0, 4, -5])
+      await sim.navigateAndCompareSnapshots('.', `${dev.prefix.toLowerCase()}-mainmenu`, nav.schedule)
     } finally {
       await sim.close()
+      expect(true).toEqual(true)
     }
   })
 
-  test.concurrent.each(DEVICE_MODELS)('get app version', async function (m) {
-    const sim = new Zemu(m.path)
+  test.each(DEVICE_MODELS)('get app version ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
     try {
-      await sim.start({ ...defaultOptions, model: m.name })
+      await sim.start({ ...defaultOptions, model: dev.name })
       const app = new BNBApp(sim.getTransport())
       const resp = await app.getVersion()
 
@@ -67,10 +69,10 @@ describe('Standard', function () {
     }
   })
 
-  test.concurrent.each(DEVICE_MODELS)('get public key', async function (m) {
-    const sim = new Zemu(m.path)
+  test.each(DEVICE_MODELS)('get public key ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
     try {
-      await sim.start({ ...defaultOptions, model: m.name })
+      await sim.start({ ...defaultOptions, model: dev.name })
       const app = new BNBApp(sim.getTransport())
 
       // Derivation path. First 3 items are automatically hardened!
@@ -99,10 +101,10 @@ describe('Standard', function () {
     }
   })
 
-  test.concurrent.each(DEVICE_MODELS)('get address', async function (m) {
-    const sim = new Zemu(m.path)
+  test.each(DEVICE_MODELS)('get address ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
     try {
-      await sim.start({ ...defaultOptions, model: m.name })
+      await sim.start({ ...defaultOptions, model: dev.name })
       const app = new BNBApp(sim.getTransport())
 
       // Derivation path. First 3 items are automatically hardened!
@@ -126,13 +128,13 @@ describe('Standard', function () {
     }
   })
 
-  test.concurrent.each(DEVICE_MODELS)('show address', async function (m) {
-    const sim = new Zemu(m.path)
+  test.each(DEVICE_MODELS)('show address ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
     try {
       await sim.start({
         ...defaultOptions,
-        model: m.name,
-        approveKeyword: m.name === 'stax' ? 'QR' : '',
+        model: dev.name,
+        approveKeyword: dev.name === 'stax' ? 'QR' : '',
         approveAction: ButtonKind.ApproveTapButton,
       })
       const app = new BNBApp(sim.getTransport())
@@ -142,7 +144,7 @@ describe('Standard', function () {
       const respRequest = app.showAddressAndPubKey(path, 'bnb')
       // Wait until we are not in the main menu
       await sim.waitUntilScreenIsNot(sim.getMainMenuSnapshot())
-      await sim.compareSnapshotsAndApprove('.', `${m.prefix.toLowerCase()}-show_address`)
+      await sim.compareSnapshotsAndApprove('.', `${dev.prefix.toLowerCase()}-show_address`)
 
       const resp = await respRequest
       console.log(resp)
@@ -154,15 +156,15 @@ describe('Standard', function () {
     }
   })
 
-  test.concurrent.each(DEVICE_MODELS)('sign basic normal', async function (m) {
-    const sim = new Zemu(m.path)
+  test.each(DEVICE_MODELS)('sign basic normal ($dev.name)', async ({ dev }) => {
+    const sim = new Zemu(dev.path)
     try {
-      await sim.start({ ...defaultOptions, model: m.name })
+      await sim.start({ ...defaultOptions, model: dev.name })
       const app = new BNBApp(sim.getTransport())
 
       const path = [44, 714, 0, 0, 0]
-      const tx_str_basic = `{"account_number":"12","chain_id":"bnbchain","data":null,"memo":"smiley!☺","msgs":[{"id":"BA36F0FAD74D8F41045463E4774F328F4AF779E5-4","ordertype":2,"price":1.612345678,"quantity":123.456,"sender":"bnc1hgm0p7khfk85zpz5v0j8wnej3a90w7098fpxyh","side":1,"symbol":"NNB-338_BNB","timeinforce":3}],"sequence":"3","source":"1"}`
-      //   const tx_str_basic = `{"account_number":"1","chain_id":"bnbchain","data":"DATA","memo":"","msgs":[{"inputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}],"outputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}]}],"sequence":"2","source":"1"}`
+      //   const tx_str_basic = `{"account_number":"12","chain_id":"bnbchain","data":null,"memo":"smiley!☺","msgs":[{"id":"BA36F0FAD74D8F41045463E4774F328F4AF779E5-4","ordertype":2,"price":1.612345678,"quantity":123.456,"sender":"bnc1hgm0p7khfk85zpz5v0j8wnej3a90w7098fpxyh","side":1,"symbol":"NNB-338_BNB","timeinforce":3}],"sequence":"3","source":"1"}`
+      const tx_str_basic = `{"account_number":"1","chain_id":"Binance-Chain-Tigris","data":"DATA","memo":"MEMO","msgs":[{"inputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":"10000000000","denom":"BNB"}]}],"outputs":[{"address":"bnb1hlly02l6ahjsgxw9wlcswnlwdhg4xhx3f309d9","coins":[{"amount":10000000000,"denom":"BNB"}]}]}],"sequence":"2","source":"1"}`
       const tx = Buffer.from(tx_str_basic, 'utf-8')
 
       // get address / publickey
@@ -176,7 +178,7 @@ describe('Standard', function () {
 
       // Wait until we are not in the main menu
       await sim.waitUntilScreenIsNot(sim.getMainMenuSnapshot())
-      await sim.compareSnapshotsAndApprove('.', `${m.prefix.toLowerCase()}-sign_basic`)
+      await sim.compareSnapshotsAndApprove('.', `${dev.prefix.toLowerCase()}-sign_basic`)
 
       const resp = await signatureRequest
       console.log(resp)
@@ -204,12 +206,12 @@ describe('Standard', function () {
   })
 
   //   test.concurrent.each(DEVICE_MODELS)('show address HUGE', async function (m) {
-  //     const sim = new Zemu(m.path)
+  //     const sim = new Zemu(dev.path)
   //     try {
   //       await sim.start({
   //         ...defaultOptions,
-  //         model: m.name,
-  //         approveKeyword: m.name === 'stax' ? 'QR' : '',
+  //         model: dev.name,
+  //         approveKeyword: dev.name === 'stax' ? 'QR' : '',
   //         approveAction: ButtonKind.ApproveTapButton,
   //       })
   //       const app = new BNBApp(sim.getTransport())
@@ -227,12 +229,12 @@ describe('Standard', function () {
   //   })
 
   //   test.concurrent.each(DEVICE_MODELS)('show address HUGE Expect', async function (m) {
-  //     const sim = new Zemu(m.path)
+  //     const sim = new Zemu(dev.path)
   //     try {
   //       await sim.start({
   //         ...defaultOptions,
-  //         model: m.name,
-  //         approveKeyword: m.name === 'stax' ? 'Path' : '',
+  //         model: dev.name,
+  //         approveKeyword: dev.name === 'stax' ? 'Path' : '',
   //         approveAction: ButtonKind.ApproveTapButton,
   //       })
   //       const app = new BNBApp(sim.getTransport())
@@ -246,7 +248,7 @@ describe('Standard', function () {
 
   //       // Wait until we are not in the main menu
   //       await sim.waitUntilScreenIsNot(sim.getMainMenuSnapshot())
-  //       await sim.compareSnapshotsAndApprove('.', `${m.prefix.toLowerCase()}-show_address_huge`)
+  //       await sim.compareSnapshotsAndApprove('.', `${dev.prefix.toLowerCase()}-show_address_huge`)
 
   //       const resp = await respRequest
   //       console.log(resp)
