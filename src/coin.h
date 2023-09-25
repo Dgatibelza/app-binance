@@ -26,6 +26,10 @@ extern "C" {
 #define OFFSET_PCK_INDEX          2  //< Package index offset
 #define OFFSET_PCK_COUNT          3  //< Package count offset
 
+#ifdef INS_GET_VERSION
+#undef INS_GET_VERSION
+#endif 
+
 #define INS_GET_VERSION           0
 #define INS_PUBLIC_KEY_SECP256K1  1  // It will be deprecated in the near future
 #define INS_SIGN_SECP256K1        2
@@ -66,10 +70,8 @@ typedef enum {
 #define CRYPTO_BLOB_SKIP_BYTES              0
 #define COIN_DEFAULT_CHAINID                "Binance-Chain-Tigris"
 
-#define COIN_DEFAULT_DENOM_BASE             "BNB"
-#define COIN_DEFAULT_DENOM_REPR             "BNB"
 #define COIN_DEFAULT_DENOM_FACTOR           8
-#define COIN_DEFAULT_DENOM_TRIMMING         6
+#define COIN_DEFAULT_DENOM_TRIMMING         8
 
 // Coin denoms may be up to 128 characters long
 // https://github.com/cosmos/cosmos-sdk/blob/master/types/coin.go#L780

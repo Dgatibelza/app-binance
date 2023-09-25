@@ -19,6 +19,7 @@
 #include "zxerror.h"
 #include "zxmacros.h"
 #include "zxformat.h"
+#include "app_mode.h"
 #include "crypto.h"
 #include "app_main.h"
 

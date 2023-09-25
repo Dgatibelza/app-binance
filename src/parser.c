@@ -104,21 +104,6 @@ __Z_INLINE bool_t parser_isAmount(char *key) {
     return bool_false;
 }
 
-__Z_INLINE bool_t is_default_denom_base(const char *denom, uint8_t denom_len) {
-    if (tx_is_expert_mode()) {
-        return false;
-    }
-
-    if (strlen(COIN_DEFAULT_DENOM_BASE) != denom_len) {
-        return bool_false;
-    }
-
-    if (memcmp(denom, COIN_DEFAULT_DENOM_BASE, denom_len) == 0)
-        return bool_true;
-
-    return bool_false;
-}
-
 __Z_INLINE parser_error_t parser_formatAmountItem(uint16_t amountToken,
                                                   char *outVal, uint16_t outValLen,
                                                   uint8_t pageIdx, uint8_t *pageCount) {
@@ -185,13 +170,13 @@ __Z_INLINE parser_error_t parser_formatAmountItem(uint16_t amountToken,
     MEMCPY(tmpAmount, amountPtr, amountLen);
 
     snprintf(bufferUI, sizeof(bufferUI), "%s ", tmpAmount);
-    // If denomination has been recognized format and replace
-    if (is_default_denom_base(denomPtr, denomLen)) {
+    // If not expert mode, format amount (BEP2 tokens all have the same format)
+    if (!tx_is_expert_mode()) {
         if (fpstr_to_str(bufferUI, sizeof(bufferUI), tmpAmount, COIN_DEFAULT_DENOM_FACTOR) != 0) {
             return parser_unexpected_error;
         }
         number_inplace_trimming(bufferUI, COIN_DEFAULT_DENOM_TRIMMING);
-        snprintf(tmpDenom, sizeof(tmpDenom), " %s", COIN_DEFAULT_DENOM_REPR);
+        z_str3join(bufferUI, sizeof(bufferUI), "", " ");
     }
 
     z_str3join(bufferUI, sizeof(bufferUI), "", tmpDenom);
