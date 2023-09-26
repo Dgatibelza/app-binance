@@ -38,6 +38,7 @@ jobs:
       # CodeQL will create the database during the compilation
       - name: Build
         run: |
+          git submodule update --init --recursive
           make BOLOS_SDK=${{ matrix.sdk }}
 
       - name: Perform CodeQL Analysis

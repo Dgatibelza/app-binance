@@ -26,11 +26,7 @@ extern "C" {
 #define OFFSET_PCK_INDEX          2  //< Package index offset
 #define OFFSET_PCK_COUNT          3  //< Package count offset
 
-#ifdef INS_GET_VERSION
-#undef INS_GET_VERSION
-#endif 
-
-#define INS_GET_VERSION           0
+// INS_GET_VERSION defined in app_main.h (from zxlib)
 #define INS_PUBLIC_KEY_SECP256K1  1  // It will be deprecated in the near future
 #define INS_SIGN_SECP256K1        2
 #define INS_SHOW_ADDR_SECP256K1   3

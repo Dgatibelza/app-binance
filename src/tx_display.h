@@ -56,7 +56,7 @@ parser_error_t tx_display_readTx(parser_context_t *c,
 
 parser_error_t tx_display_numItems(uint8_t *num_items);
 
-parser_error_t tx_display_make_friendly(char* out_key, char* out_value);
+parser_error_t tx_display_make_friendly(char* out_key, uint16_t out_key_len, char* out_value, uint16_t out_value_len);
 
 //---------------------------------------------
 

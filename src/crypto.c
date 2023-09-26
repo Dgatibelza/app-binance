@@ -17,6 +17,7 @@
 #include <bech32.h>
 #include "crypto.h"
 #include "cx.h"
+#include "crypto_helpers.h"
 #include "apdu_codes.h"
 #include "coin.h"
 #include "zxmacros.h"
@@ -35,44 +36,29 @@ uint32_t viewed_bip32_path[HDPATH_LEN_DEFAULT];
 uint8_t bech32_hrp_len;
 char bech32_hrp[MAX_BECH32_HRP_LEN + 1];
 
-void keys_secp256k1(cx_ecfp_public_key_t *publicKey,
-                    cx_ecfp_private_key_t *privateKey,
-                    const uint8_t privateKeyData[32]) {
-    io_seproxyhal_io_heartbeat();
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, privateKey);
-    cx_ecfp_init_public_key(CX_CURVE_256K1, NULL, 0, publicKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, publicKey, privateKey, 1);
-    io_seproxyhal_io_heartbeat();
-}
-
 int sign_secp256k1(const uint8_t *message,
                    unsigned int message_length,
                    uint8_t *signature,
-                   unsigned int signature_capacity,
-                   unsigned int *signature_length,
-                   cx_ecfp_private_key_t *privateKey) {
-    uint8_t message_digest[CX_SHA256_SIZE];
-    io_seproxyhal_io_heartbeat();
+                   size_t *signature_length) {
+    unsigned int info = 0;
+    uint8_t message_digest[CX_SHA256_SIZE] = {0};
+        
     cx_hash_sha256(message, message_length, message_digest, CX_SHA256_SIZE);
 
-    cx_ecfp_public_key_t publicKey;
-    cx_ecdsa_init_public_key(CX_CURVE_256K1, NULL, 0, &publicKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKey, privateKey, 1);
+    if(bip32_derive_ecdsa_sign_hash_256(CX_CURVE_256K1,
+                                    hdPath,
+                                    HDPATH_LEN_DEFAULT,
+                                    CX_RND_RFC6979 | CX_LAST,
+                                    CX_SHA256,
+                                    message_digest,
+                                    CX_SHA256_SIZE,
+                                    signature,
+                                    signature_length,
+                                    &info) != CX_OK)
+    {
+        THROW(APDU_CODE_CONDITIONS_NOT_SATISFIED);
+    }
 
-    io_seproxyhal_io_heartbeat();
-    unsigned int info = 0;
-    *signature_length = cx_ecdsa_sign(
-        privateKey,
-        CX_RND_RFC6979 | CX_LAST,
-        CX_SHA256,
-        message_digest,
-        CX_SHA256_SIZE,
-        signature,
-        signature_capacity,
-        &info);
-
-    os_memset(&privateKey, 0, sizeof(privateKey));
-    io_seproxyhal_io_heartbeat();
 #ifdef TESTING_ENABLED
     return cx_ecdsa_verify(
             &publicKey,
@@ -85,43 +71,6 @@ int sign_secp256k1(const uint8_t *message,
 #else
     return 1;
 #endif
-}
-
-zxerr_t crypto_extractUncompressedPublicKey(const uint32_t path[HDPATH_LEN_DEFAULT], uint8_t *pubKey, uint16_t pubKeyLen) {
-    cx_ecfp_public_key_t cx_publicKey = {0};
-    cx_ecfp_private_key_t cx_privateKey = {0};
-    uint8_t privateKeyData[32] = {0};
-
-    if (pubKeyLen < PK_LEN_SECP256K1_UNCOMPRESSED) {
-        return zxerr_invalid_crypto_settings;
-    }
-    
-    volatile zxerr_t err = zxerr_unknown;
-    BEGIN_TRY
-    {
-        TRY {
-            os_perso_derive_node_bip32(CX_CURVE_256K1,
-                                       path,
-                                       HDPATH_LEN_DEFAULT,
-                                       privateKeyData, NULL);
-
-            cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &cx_privateKey);
-            cx_ecfp_init_public_key(CX_CURVE_256K1, NULL, 0, &cx_publicKey);
-            cx_ecfp_generate_pair(CX_CURVE_256K1, &cx_publicKey, &cx_privateKey, 1);
-            err = zxerr_ok;
-        }
-        CATCH_OTHER(e) {
-            err = zxerr_ledger_api_error;
-        }
-        FINALLY {
-            MEMZERO(&cx_privateKey, sizeof(cx_privateKey));
-            MEMZERO(privateKeyData, 32);
-        }
-    }
-    END_TRY;
-
-    memcpy(pubKey, cx_publicKey.W, PK_LEN_SECP256K1_UNCOMPRESSED);
-    return err;
 }
 
 __Z_INLINE zxerr_t compressPubkey(const uint8_t *pubkey, uint16_t pubkeyLen, uint8_t *output, uint16_t outputLen) {
@@ -144,7 +93,7 @@ __Z_INLINE zxerr_t compressPubkey(const uint8_t *pubkey, uint16_t pubkeyLen, uin
 }
 
 void set_hrp(char *hrp) {
-    strcpy(bech32_hrp, hrp);
+    strncpy(bech32_hrp, hrp, sizeof(bech32_hrp));
     bech32_hrp_len = strlen(bech32_hrp);
 }
 
@@ -159,7 +108,7 @@ bool validate_bnc_hrp(void) {
 void ripemd160_32(uint8_t *out, uint8_t *in) {
     cx_ripemd160_t rip160;
     cx_ripemd160_init(&rip160);
-    cx_hash(&rip160.header, CX_LAST, in, CX_SHA256_SIZE, out, CX_RIPEMD160_SIZE);
+    cx_hash_no_throw(&rip160.header, CX_LAST, in, CX_SHA256_SIZE, out, CX_RIPEMD160_SIZE);
 }
 
 void crypto_set_hrp(char *p) {
@@ -177,7 +126,16 @@ zxerr_t crypto_fillAddress(uint8_t *buffer, uint16_t buffer_len, uint16_t *addrR
     // extract pubkey
     uint8_t uncompressedPubkey [PK_LEN_SECP256K1_UNCOMPRESSED] = {0};
 
-    CHECK_ZXERR(crypto_extractUncompressedPublicKey(hdPath, uncompressedPubkey, sizeof(uncompressedPubkey)))
+    if(bip32_derive_get_pubkey_256(CX_CURVE_256K1,
+                                hdPath,
+                                HDPATH_LEN_DEFAULT,
+                                uncompressedPubkey,
+                                NULL,
+                                CX_SHA512)  != CX_OK)
+    {
+        THROW(APDU_CODE_CONDITIONS_NOT_SATISFIED);
+    }
+    
     CHECK_ZXERR(compressPubkey(uncompressedPubkey, sizeof(uncompressedPubkey), buffer, buffer_len))
 
     char *addr = (char *) (buffer + PK_LEN_SECP256K1);

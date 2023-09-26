@@ -280,7 +280,7 @@ parser_error_t parser_getItem(const parser_context_t *ctx,
     }
     CHECK_APP_CANARY()
 
-    CHECK_PARSER_ERR(tx_display_make_friendly(tmpKey,outVal))
+    CHECK_PARSER_ERR(tx_display_make_friendly(tmpKey,sizeof(tmpKey),outVal,outValLen))
     CHECK_APP_CANARY()
 
     snprintf(outKey, outKeyLen, "%s", tmpKey);

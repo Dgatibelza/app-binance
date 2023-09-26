@@ -477,38 +477,38 @@ static const key_subst_t key_substitutions[] = {
         
 };
 
-parser_error_t tx_display_make_friendly(char* out_key, char* out_value) {
+parser_error_t tx_display_make_friendly(char* out_key, uint16_t out_key_len, char* out_value, uint16_t out_value_len) {
     CHECK_PARSER_ERR(tx_indexRootFields())
 
     if (strcmp(out_key, "msgs/ordertype") == 0) {
         if (strcmp(out_value, "1") == 0) {
-            strcpy(out_value, "Market order");
+            strncpy(out_value, "Market order", out_value_len);
         }
         else if (strcmp(out_value, "2") == 0) {
-            strcpy(out_value, "Limit order");
+            strncpy(out_value, "Limit order", out_value_len);
         }
     }
     else if (strcmp(out_key, "msgs/side") == 0) {
         if (strcmp(out_value, "1") == 0) {
-            strcpy(out_value, "Buy");
+            strncpy(out_value, "Buy", out_value_len);
         }
         else if (strcmp(out_value, "2") == 0) {
-            strcpy(out_value, "Sell");
+            strncpy(out_value, "Sell", out_value_len);
         }
     }
     else if (strcmp(out_key, "msgs/timeinforce") == 0) {
         if (strcmp(out_value, "1") == 0) {
-            strcpy(out_value, "Good 'Til Expiry");
+            strncpy(out_value, "Good 'Til Expiry", out_value_len);
         }
         else if (strcmp(out_value, "3") == 0) {
-            strcpy(out_value, "Immediate or Cancel");
+            strncpy(out_value, "Immediate or Cancel", out_value_len);
         }
     }
 
     // post process keys
     for (size_t i = 0; i < array_length(key_substitutions); i++) {
         if (!strcmp(out_key, key_substitutions[i].str1)) {
-            strncpy_s(out_key, key_substitutions[i].str2, parser_tx_obj.query.out_key_len);
+            strncpy_s(out_key, key_substitutions[i].str2, out_key_len);
             break;
         }
     }

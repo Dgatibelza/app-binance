@@ -20,6 +20,8 @@
 #include <os.h>
 
 #include "app_main.h"
+#include "cx.h"
+#include "crypto_helpers.h"
 #include "common.h"
 #include "addr.h"
 #include "ux.h"
@@ -32,17 +34,6 @@
 #include "apdu_codes.h"
 #include "bech32.h"
 #include "app_mode.h"
-
-#ifdef TESTING_ENABLED
-// Generate using always the same private data
-// to allow for reproducible results
-const uint8_t privateKeyDataTest[] = {
-        0x75, 0x56, 0x0e, 0x4d, 0xde, 0xa0, 0x63, 0x05,
-        0xc3, 0x6e, 0x2e, 0xb5, 0xf7, 0x2a, 0xca, 0x71,
-        0x2d, 0x13, 0x4c, 0xc2, 0xa0, 0x59, 0xbf, 0xe8,
-        0x7e, 0x9b, 0x5d, 0x55, 0xbf, 0x81, 0x3b, 0xd4
-};
-#endif
 
 uint16_t action_addrResponseLen;
 
@@ -87,7 +78,7 @@ __Z_INLINE void extractHDPath(uint32_t rx, uint32_t offset) {
     }
 }
 
-bool process_chunk(volatile uint32_t *tx, uint32_t rx, bool getBip32) {
+bool process_chunk(uint32_t rx, bool getBip32) {
     int packageIndex = G_io_apdu_buffer[OFFSET_PCK_INDEX];
     int packageCount = G_io_apdu_buffer[OFFSET_PCK_COUNT];
 
@@ -119,29 +110,14 @@ bool process_chunk(volatile uint32_t *tx, uint32_t rx, bool getBip32) {
 }
 
 void tx_accept_sign() {
-    // Generate keys
-    cx_ecfp_public_key_t publicKey;
-    cx_ecfp_private_key_t privateKey;
-    uint8_t privateKeyData[32];
-
-    unsigned int length = 0;
     int result = 0;
-    
-    os_perso_derive_node_bip32(
-            CX_CURVE_256K1,
-            hdPath, HDPATH_LEN_DEFAULT,
-            privateKeyData, NULL);
-
-    keys_secp256k1(&publicKey, &privateKey, privateKeyData);
-    memset(privateKeyData, 0, 32);
+    size_t length = (size_t) IO_APDU_BUFFER_SIZE;
 
     result = sign_secp256k1(
             tx_get_buffer(),
             tx_get_buffer_length(),
             G_io_apdu_buffer,
-            IO_APDU_BUFFER_SIZE,
-            &length,
-            &privateKey);
+            &length);
       
     if (result == 1) {
         set_code(G_io_apdu_buffer, length, APDU_CODE_OK);
@@ -158,21 +134,7 @@ void tx_reject() {
     view_idle_show(0,NULL);
 }
 
-void get_pubkey(cx_ecfp_public_key_t *publicKey) {
-    cx_ecfp_private_key_t privateKey;
-    uint8_t privateKeyData[32];
-
-    // Generate keys
-    os_perso_derive_node_bip32(
-            CX_CURVE_256K1,
-            hdPath, HDPATH_LEN_DEFAULT,
-            privateKeyData, NULL);
-    keys_secp256k1(publicKey, &privateKey, privateKeyData);
-    memset(privateKeyData, 0, sizeof(privateKeyData));
-    memset(&privateKey, 0, sizeof(privateKey));
-}
-
-__Z_INLINE void handleGetVersion(volatile uint32_t *tx, uint32_t rx) {
+__Z_INLINE void handleGetVersion(volatile uint32_t *tx) {
 #if defined(TARGET_NANOX) || defined(TARGET_NANOS2) || defined(TARGET_STAX)
     unsigned int UX_ALLOWED = (G_ux_params.len != BOLOS_UX_IGNORE && G_ux_params.len != BOLOS_UX_CONTINUE);
 #else
@@ -184,9 +146,9 @@ __Z_INLINE void handleGetVersion(volatile uint32_t *tx, uint32_t rx) {
 #else
     G_io_apdu_buffer[0] = 0;
 #endif
-    G_io_apdu_buffer[1] = LEDGER_MAJOR_VERSION;
-    G_io_apdu_buffer[2] = LEDGER_MINOR_VERSION;
-    G_io_apdu_buffer[3] = LEDGER_PATCH_VERSION;
+    G_io_apdu_buffer[1] = MAJOR_VERSION;
+    G_io_apdu_buffer[2] = MINOR_VERSION;
+    G_io_apdu_buffer[3] = PATCH_VERSION;
     G_io_apdu_buffer[4] = !UX_ALLOWED;
 
     *tx += 5;
@@ -198,10 +160,19 @@ __Z_INLINE void handleGetVersion(volatile uint32_t *tx, uint32_t rx) {
 __Z_INLINE void handleGetUncompressedPubKey(volatile uint32_t *tx, uint32_t rx) {
     extractHDPath(rx, OFFSET_DATA + 1);
 
-    cx_ecfp_public_key_t publicKey;
-    get_pubkey(&publicKey);
+    uint8_t raw_pubkey[65];
 
-    os_memmove(G_io_apdu_buffer, publicKey.W, 65);
+     if(bip32_derive_get_pubkey_256(CX_CURVE_256K1,
+                                    hdPath,
+                                    HDPATH_LEN_DEFAULT,
+                                    raw_pubkey,
+                                    NULL,
+                                    CX_SHA512)  != CX_OK)
+    {
+        THROW(APDU_CODE_CONDITIONS_NOT_SATISFIED);
+    }
+
+    memmove(G_io_apdu_buffer, raw_pubkey, 65);
     *tx += 65;
 
     THROW(APDU_CODE_OK);
@@ -246,7 +217,7 @@ __Z_INLINE void handleGetAddrSecp256K1(volatile uint32_t *flags, volatile uint32
 
 
 __Z_INLINE void handleSignSecp256K1(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx){
-    if (!process_chunk(tx, rx, true))
+    if (!process_chunk(rx, true))
         THROW(APDU_CODE_OK);
 
     const char *error_msg = tx_parse();
@@ -282,7 +253,7 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
             PRINTF("INS: %d\n", G_io_apdu_buffer[OFFSET_INS]);
             switch (G_io_apdu_buffer[OFFSET_INS]) {
                 case INS_GET_VERSION: {
-                    handleGetVersion(tx, rx);
+                    handleGetVersion(tx);
                     break;
                 }
 
@@ -309,52 +280,48 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
 
 #ifdef TESTING_ENABLED
                 case INS_HASH_TEST: {
-                    if (process_chunk(tx, rx, false)) {
+                    if (process_chunk(rx, false)) {
                         uint8_t message_digest[CX_SHA256_SIZE];
 
-                        cx_hash_sha256(transaction_get_buffer(),
-                                       transaction_get_buffer_length(),
+                        cx_hash_sha256(tx_get_buffer(),
+                                       tx_get_buffer_length(),
                                        message_digest,
                                        CX_SHA256_SIZE);
 
-                        os_memmove(G_io_apdu_buffer, message_digest, CX_SHA256_SIZE);
+                        memmove(G_io_apdu_buffer, message_digest, CX_SHA256_SIZE);
                         *tx += 32;
                     }
                     THROW(APDU_CODE_OK);
                 }
                 break;
-
                 case INS_PUBLIC_KEY_SECP256K1_TEST: {
                     // Generate key
-                    cx_ecfp_public_key_t publicKey;
-                    cx_ecfp_private_key_t privateKey;
-                    keys_secp256k1(&publicKey, &privateKey, privateKeyDataTest );
+                    uint8_t raw_pubkey[65];
+                    if(bip32_derive_get_pubkey_256(CX_CURVE_256K1,
+                                    hdPath,
+                                    HDPATH_LEN_DEFAULT,
+                                    raw_pubkey,
+                                    NULL,
+                                    CX_SHA512)  != CX_OK)
+                    {
+                        THROW(APDU_CODE_CONDITIONS_NOT_SATISFIED);
+                    }
 
-                    os_memmove(G_io_apdu_buffer, publicKey.W, 65);
+                    memmove(G_io_apdu_buffer, raw_pubkey, 65);
                     *tx += 65;
 
                     THROW(APDU_CODE_OK);
                 }
                 break;
-
                 case INS_SIGN_SECP256K1_TEST: {
-                    if (process_chunk(tx, rx, false)) {
-
-                        unsigned int length = 0;
-
-                        // Generate keys
-                        cx_ecfp_public_key_t publicKey;
-                        cx_ecfp_private_key_t privateKey;
-                        keys_secp256k1(&publicKey, &privateKey, privateKeyDataTest );
+                    if (process_chunk(rx, false)) {
+                        size_t length = (size_t) IO_APDU_BUFFER_SIZE;
 
                         // Skip UI and validation
-                        sign_secp256k1(
-                                transaction_get_buffer(),
-                                transaction_get_buffer_length(),
-                                G_io_apdu_buffer,
-                                IO_APDU_BUFFER_SIZE,
-                                &length,
-                                &privateKey);
+                        sign_secp256k1(tx_get_buffer(),
+                                       tx_get_buffer_length(),
+                                       G_io_apdu_buffer,
+                                       &length);
 
                         *tx += length;
                     }
