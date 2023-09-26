@@ -242,7 +242,6 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
     {
         TRY
         {
-            PRINTF("Debug trace inside handleApdu\n");
             if (G_io_apdu_buffer[OFFSET_CLA] != CLA) {
                 THROW(APDU_CODE_CLA_NOT_SUPPORTED);
             }
@@ -250,7 +249,6 @@ void handleApdu(volatile uint32_t *flags, volatile uint32_t *tx, uint32_t rx) {
             if (rx < 5) {
                 THROW(APDU_CODE_WRONG_LENGTH);
             }
-            PRINTF("INS: %d\n", G_io_apdu_buffer[OFFSET_INS]);
             switch (G_io_apdu_buffer[OFFSET_INS]) {
                 case INS_GET_VERSION: {
                     handleGetVersion(tx);
