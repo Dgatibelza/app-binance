@@ -41,7 +41,6 @@ APPVERSION = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 
 # Application source files
 APP_SOURCE_PATH += src
-APP_SOURCE_PATH += glyphs
 
 # ZXLib sources
 ZXLIB_DIR := deps/ledger-zxlib
