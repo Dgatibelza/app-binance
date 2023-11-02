@@ -37,11 +37,7 @@ parser_error_t parser_init_context(parser_context_t *ctx,
 }
 
 parser_error_t parser_init(parser_context_t *ctx, const uint8_t *buffer, size_t bufferSize) {
-    parser_error_t err = parser_init_context(ctx, buffer, bufferSize);
-    if (err != parser_ok)
-        return err;
-
-    return err;
+    return parser_init_context(ctx, buffer, bufferSize);
 }
 
 const char *parser_getErrorDescription(parser_error_t err) {
