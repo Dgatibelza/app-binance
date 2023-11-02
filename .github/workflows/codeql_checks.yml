@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v3
+        with:
+            submodules: recursive  
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
@@ -38,7 +40,6 @@ jobs:
       # CodeQL will create the database during the compilation
       - name: Build
         run: |
-          git submodule update --init --recursive
           make BOLOS_SDK=${{ matrix.sdk }}
 
       - name: Perform CodeQL Analysis
