@@ -129,14 +129,13 @@ void tx_accept_sign() {
             tx_get_buffer_length(),
             G_io_apdu_buffer,
             &length);
-      
-    if (result == 1) {
-        set_code(G_io_apdu_buffer, length, APDU_CODE_OK);
-        io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, length + 2);
-    } else {
-        set_code(G_io_apdu_buffer, length, APDU_CODE_SIGN_VERIFY_ERROR);
-        io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, length + 2);
+    
+    uint16_t return_code = APDU_CODE_OK;
+    if (result != 1) {
+        return_code = APDU_CODE_SIGN_VERIFY_ERROR;
     }
+    set_code(G_io_apdu_buffer, length, return_code);
+    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, length + 2);
 }
 
 void tx_reject() {
