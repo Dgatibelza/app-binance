@@ -56,19 +56,14 @@ const char *get_required_root_item(root_item_e i) {
 __Z_INLINE uint8_t get_root_max_level(root_item_e i) {
     switch (i) {
         case root_item_chain_id:
-            return 1;
         case root_item_account_number:
-            return 1;
         case root_item_sequence:
-            return 1;
         case root_item_memo:
+        case root_item_source:
+        case root_item_data:
             return 1;
         case root_item_msgs:
             return 2;
-        case root_item_source:
-            return 1;
-        case root_item_data:
-            return 1;
         default:
             return 0;
     }

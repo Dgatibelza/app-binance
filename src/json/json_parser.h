@@ -104,7 +104,7 @@ parser_error_t object_get_element_count(const parsed_json_t *json,
 /// \param json
 /// \param object_token_index: token index of the parent object
 /// \param object_element_index
-/// \return token index (out)
+/// \param[out] token_index
 /// \return Error message
 parser_error_t object_get_nth_key(const parsed_json_t *json,
                                   uint16_t object_token_index,
@@ -115,7 +115,7 @@ parser_error_t object_get_nth_key(const parsed_json_t *json,
 /// \param json
 /// \param object_token_index: token index of the parent object
 /// \param object_element_index
-/// \return token index (out))
+/// \param[out] token_index
 /// \return Error message
 parser_error_t object_get_nth_value(const parsed_json_t *json,
                                     uint16_t object_token_index,
