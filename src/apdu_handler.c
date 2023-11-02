@@ -61,12 +61,23 @@ __Z_INLINE void extractHDPath(uint32_t rx, uint32_t offset) {
     }
 
     MEMCPY(hdPath, G_io_apdu_buffer + offset, sizeof(uint32_t) * HDPATH_LEN_DEFAULT);
-    
-    // Check values
-    if (hdPath[0] != HDPATH_0_DEFAULT ||
-        hdPath[1] != HDPATH_1_DEFAULT ||
-        hdPath[2] != HDPATH_2_DEFAULT) {
-        THROW(APDU_CODE_DATA_INVALID);
+
+    bool mutable_nodes[HDPATH_LEN_DEFAULT] = {false, false, true, false, true};
+    uint32_t expected[HDPATH_LEN_DEFAULT] = {
+        HDPATH_0_DEFAULT,  // Purpose
+        HDPATH_1_DEFAULT,  // Coin type (chain ID)
+        HDPATH_2_DEFAULT,  // Account - MUTABLE
+        HDPATH_3_DEFAULT,  // Change (no change addresses for now)
+        HDPATH_4_DEFAULT,  // Address index - MUTABLE
+    };
+   
+    // Check for invalid values
+    for (uint8_t i = 0; i < HDPATH_LEN_DEFAULT; i++) {
+        if (!mutable_nodes[i]) {
+            if (hdPath[i] != expected[i]) {
+                THROW(APDU_CODE_DATA_INVALID);
+            }
+        }
     }
 
     // Limit values unless the app is running in expert mode
