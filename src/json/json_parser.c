@@ -50,17 +50,11 @@ parser_error_t json_parse(parsed_json_t *parsed_json, const char *buffer, uint16
                 return parser_unexpected_characters;
             case JSMN_ERROR_PART:
                 return parser_json_incomplete_json;
+            case 0:
+                return parser_json_zero_tokens;
             default:
                 return parser_json_unexpected_error;
         }
-    }
-
-    parsed_json->numberOfTokens = 0;
-    parsed_json->isValid = 0;
-
-    // Parsing error
-    if (num_tokens <= 0) {
-        return parser_json_zero_tokens;
     }
 
     // We cannot support if number of tokens exceeds the limit
