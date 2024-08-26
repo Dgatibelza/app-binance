@@ -20,7 +20,7 @@ jobs:
     name: Binance e2e tests
     strategy:
       matrix:
-        device: ["nanos", "nanox", "nanosp", "stax"]
+        device: ["nanos", "nanox", "nanosp", "stax", "flex"]
       fail-fast: false
     needs:
       - build_application
@@ -38,7 +38,7 @@ jobs:
         run: cd tests_zemu && npm install
 
       - name: Download app binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: compiled_app_binaries
           path: build

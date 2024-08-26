@@ -27,6 +27,10 @@ include $(BOLOS_SDK)/Makefile.defines
 #        Mandatory configuration       #
 ########################################
 
+# Set the default value for PRODUCTION_BUILD to 1 if not already defined
+PRODUCTION_BUILD ?= 1
+DEFINES += PRODUCTION_BUILD=${PRODUCTION_BUILD}
+
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
 #DEBUG = 1
 
@@ -35,7 +39,7 @@ APPNAME = "Binance Chain"
 
 # Application version
 APPVERSION_M= 2
-APPVERSION_N= 0
+APPVERSION_N= 1
 APPVERSION_P= 0
 APPVERSION = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 
@@ -57,6 +61,7 @@ ICON_NANOS = nanos_app_binance.gif
 ICON_STAX = stax_app_binance.gif
 ICON_NANOX = nanox_app_binance.gif
 ICON_NANOSP = nanox_app_binance.gif
+ICON_FLEX = flex_app_binance.gif
 
 # Application allowed derivation curves.
 CURVE_APP_LOAD_PARAMS = secp256k1
