@@ -134,7 +134,7 @@ describe('Standard', function () {
       await sim.start({
         ...defaultOptions,
         model: dev.name,
-        approveKeyword: dev.name === 'stax' ? 'QR' : '',
+        approveKeyword: dev.name === 'stax' || dev.name === 'flex' ? 'Confirm' : '',
         approveAction: ButtonKind.ApproveTapButton,
       })
       const app = new BNBApp(sim.getTransport())

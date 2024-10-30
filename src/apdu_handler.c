@@ -145,7 +145,7 @@ void tx_reject() {
 }
 
 __Z_INLINE void handleGetVersion(volatile uint32_t *tx) {
-#if defined(TARGET_NANOX) || defined(TARGET_NANOS2) || defined(TARGET_STAX)
+#if !defined(TARGET_NANOS)
     unsigned int UX_ALLOWED = (G_ux_params.len != BOLOS_UX_IGNORE && G_ux_params.len != BOLOS_UX_CONTINUE);
 #else
     unsigned int UX_ALLOWED = (ux.params.len != BOLOS_UX_IGNORE && ux.params.len != BOLOS_UX_CONTINUE);
